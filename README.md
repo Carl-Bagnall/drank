@@ -155,7 +155,19 @@ Email and password, with server-side sessions. No social login — the brief ask
 - **Login gives the same answer for a wrong password, an unknown email and an unknown username**, and verifies against a dummy hash when no user matches, so the form cannot be used to discover which addresses or usernames have accounts. The message names neither field.
 - **Usernames are therefore login credentials.** That is a deliberate trade-off, and the same one GitHub and Reddit make; worth revisiting if public profiles ever expose usernames.
 
-**Not yet done: rate limiting.** The brief lists it, and login is the obvious place for it. A weak hand-rolled counter would give false confidence, so the intended answer is Cloudflare's own rate-limiting binding, configured in `wrangler.jsonc` at deployment. Tracked for Phase 7.
+#### Known gaps
+
+Recorded deliberately rather than left to be rediscovered.
+
+**1. No rate limiting.** The brief lists it, and login is the obvious place for it. A hand-rolled attempt counter would give false confidence while being trivially bypassed, so the intended answer is Cloudflare's own rate-limiting binding, configured in `wrangler.jsonc` at deployment. **Tracked for Phase 7, and the higher priority of the two.**
+
+Note this is what actually defends the login form. Identifier secrecy never did — see gap 2 — so rate limiting, password length and (later) breached-password screening are the real controls.
+
+**2. Registration reveals whether an email address has an account.** `POST /api/auth/register` answers "An account already exists for that email", so anyone can test an address for membership. Login is careful about this; registration is not.
+
+This is common — plenty of large sites behave identically — but it is a genuine privacy leak in a way the equivalent username message is not: people choose their username knowing it is public, and a username must be checkable for anyone to pick one at all. Nobody chooses to publish their email.
+
+Fixing it properly means not answering at signup time: accept the registration, then email the address either a verification link or a "someone tried to sign up with your address" notice. That requires outbound email, which is a feature in its own right — Cloudflare Email Routing handles inbound only, so it would mean a third-party sender. **Deferred until there is a reason to send email anyway, at which point the fix is cheap.**
 
 ### Database
 
