@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # `wrangler types` regenerates worker-configuration.d.ts, which is
+      # git-ignored because it is derived from wrangler.jsonc.
+      - run: npx wrangler types
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run build

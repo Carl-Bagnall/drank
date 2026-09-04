@@ -1,0 +1,161 @@
+# Drank
+
+A community-driven catalogue and collection app for soft drinks — "Discogs for soft drinks".
+
+Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
+
+> **Status: Phase 1 (foundation).** The application shell, design system, database schema and seed data are in place. The catalogue, search, accounts, collections and ratings are not built yet — see [Roadmap](#roadmap).
+
+---
+
+## Requirements
+
+- **Node.js 24 LTS** or newer (`node --version`)
+- A **Cloudflare account** (only needed to deploy or to use a remote database; local development needs no Cloudflare login)
+
+---
+
+## 1. Install dependencies
+
+```bash
+npm install
+```
+
+npm 11 blocks package install scripts by default. The warning about `workerd` and `esbuild` is expected and safe to ignore — both ship their platform binaries as optional dependencies rather than postinstall downloads.
+
+## 2. Generate Worker types
+
+`worker-configuration.d.ts` is derived from `wrangler.jsonc` and is deliberately git-ignored, so generate it after cloning and again whenever you change bindings:
+
+```bash
+npm run cf-typegen
+```
+
+## 3. Create the D1 database
+
+Local development uses a local SQLite database managed by Wrangler and needs no Cloudflare account. You only need this step to deploy or to work against remote data:
+
+```bash
+npx wrangler login
+npx wrangler d1 create drank
+```
+
+Copy the `database_id` it prints into `d1_databases[0].database_id` in `wrangler.jsonc`.
+
+> The committed `database_id` is a placeholder. Local commands ignore it; any `--remote` command needs the real value.
+
+## 4. Run migrations
+
+```bash
+npm run db:migrate          # local
+npm run db:migrate:remote   # against Cloudflare
+```
+
+## 5. Load seed data
+
+```bash
+npm run db:seed             # local
+```
+
+54 drinks across 27 brands and 11 countries, 5 users and ~160 ratings. The seed is re-runnable — it deletes and recreates everything prefixed `seed-`. **Do not run it against production.**
+
+## 6. Configure environment variables
+
+Phase 1 has no secrets. When they arrive, copy `.dev.vars.example` to `.dev.vars` (git-ignored) for local use, and set production values with `npx wrangler secret put NAME`. Never commit secrets, and never expose them to the browser — external API calls that need credentials happen in the Worker.
+
+## 7. Run locally
+
+```bash
+npm run dev
+```
+
+Open <http://localhost:5173>. The Cloudflare Vite plugin runs the Worker in workerd alongside Vite, so the local app uses real bindings and a real D1 database rather than mocks.
+
+The home screen shows a foundation status panel. `Database: connected` with a non-zero drink count means the full stack — React → API → Hono → D1 — is working.
+
+## 8. Deploy
+
+```bash
+npm run deploy
+```
+
+This builds and deploys using the generated `dist/drank/wrangler.json`. Deployment automation is Phase 7 and is not set up yet; `.github/workflows/ci.yml` currently runs typecheck, tests and build only.
+
+---
+
+## Other commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm test` | Run the test suite once |
+| `npm run test:watch` | Watch mode |
+| `npm run typecheck` | Type-check all three TS projects |
+| `npm run build` | Production build |
+| `npm run db:studio` | List the tables in the local database |
+
+---
+
+## Project structure
+
+```
+migrations/       D1 schema migrations, applied in order
+seed/             Development seed data
+src/
+  client/         React SPA — components, pages, styles, API client
+  worker/         Hono API — routes and, later, service layers
+  shared/         Types and logic used by both sides
+test/             Vitest suites, run inside workerd against real D1
+```
+
+`src/shared` is the contract between the two halves. It must not import from `client` or `worker`, and must not use DOM or Workers globals.
+
+---
+
+## Architecture
+
+**One Worker serves everything.** The built SPA is served as static assets and the API lives at `/api/*` on the same Worker. `assets.run_worker_first: ["/api/*"]` in `wrangler.jsonc` is load-bearing: without it, the single-page-application fallback would answer unknown API paths with `index.html` instead of a JSON 404.
+
+**Tests run against real D1.** `@cloudflare/vitest-pool-workers` executes the suite inside workerd, applying `migrations/` to an isolated database first. Schema guarantees — the unique constraint that stops duplicate collection entries, the rating range check — are therefore tested for real rather than mocked.
+
+### Database
+
+Four tables: `users`, `drinks`, `collection_entries`, `ratings`.
+
+- **Only `name` and `brand` are required on a drink.** The catalogue must accept incomplete, user-contributed products.
+- **Ratings are stored as integer half-points, 0–20**, representing 0.0–10.0. Integers make the range check trivial and avoid floating-point comparison bugs. All conversion lives in `src/shared/rating.ts`.
+- **The community rating is not stored.** It is averaged at query time against an index on `ratings(drink_id)`.
+- **A collection entry carries no rating.** `ratings` is the single source of truth, which keeps "owning" and "rating" separate — you can rate a drink you do not own.
+- **Barcodes are optional but unique when present**, via a partial unique index.
+- Brand, category and country are indexed text rather than lookup tables. `brand_normalised` groups variant families without a join.
+
+### Conventions
+
+- IDs are `crypto.randomUUID()` text; timestamps are ISO-8601 UTC text. Both favour readability in a raw row dump over compactness.
+- `drinks.status` is moderation visibility (`published` / `hidden` / `merged`). Product lifecycle — limited edition, seasonal, discontinued — is a separate concern and gets its own column when it is needed.
+- Components never call `fetch` directly; they go through `src/client/api.ts`.
+
+### Pinned versions
+
+`compatibility_date` is pinned to **2026-08-22** because the workerd bundled with `@cloudflare/vitest-pool-workers` does not yet accept later dates. Raise it once that package updates, and run the tests to confirm.
+
+---
+
+## Design system
+
+Tokens live in `src/client/styles/index.css` using Tailwind v4's CSS-first `@theme` configuration — there is no `tailwind.config.js`.
+
+Colour pairings are fixed for contrast: white on `--color-cherry` (~4.6:1), ink on `--color-citrus` (~12.1:1), ink on `--color-cream` (~17:1). Status and rating are never communicated by colour alone. The theme is light-only for now; a dark theme is one additional block of token overrides and needs no component changes.
+
+---
+
+## Roadmap
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 1 | Foundation: tooling, shell, routing, schema, seed, tests | **Done** |
+| 2 | Catalogue: drink API, cards, detail page, search, discovery | Next |
+| 3 | Accounts and collections | |
+| 4 | Ratings UI: personal and community | |
+| 5 | Open Food Facts lookup and barcode scanning | |
+| 6 | Polish: mobile UX, accessibility, performance | |
+| 7 | Production deployment and GitHub workflows | |
