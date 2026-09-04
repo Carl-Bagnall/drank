@@ -64,19 +64,29 @@ describe("POST /api/drinks/:id/rating", () => {
     expect(body.community).toEqual({ average: 8.5, count: 1 });
   });
 
-  it("stores the score as integer half points", async () => {
+  it("stores the score as integer tenths", async () => {
     const cookie = await register();
-    await rate(cookie, "d1", 7.5);
+    await rate(cookie, "d1", 8.2);
 
     const row = await env.DB.prepare("SELECT score FROM ratings").first<{
       score: number;
     }>();
-    expect(row?.score).toBe(15);
+    expect(row?.score).toBe(82);
   });
 
-  it("accepts the whole range in half-point steps", async () => {
+  it("accepts a tenth-precision score and returns it unchanged", async () => {
     const cookie = await register();
-    for (const score of [0, 0.5, 5, 7.5, 9.5, 10]) {
+    const response = await rate(cookie, "d1", 8.2);
+
+    expect(response.status).toBe(200);
+    const body = await response.json<RatingResponse>();
+    expect(body.viewerRating).toBe(8.2);
+    expect(body.community).toEqual({ average: 8.2, count: 1 });
+  });
+
+  it("accepts the whole range in tenth steps", async () => {
+    const cookie = await register();
+    for (const score of [0, 0.1, 5, 7.5, 8.2, 9.9, 10]) {
       const response = await rate(cookie, "d1", score);
       expect(response.status, `score ${score}`).toBe(200);
       expect((await response.json<RatingResponse>()).viewerRating).toBe(score);
@@ -85,7 +95,7 @@ describe("POST /api/drinks/:id/rating", () => {
 
   it("rejects out-of-range, off-step and non-numeric scores", async () => {
     const cookie = await register();
-    for (const score of [-1, 10.5, 7.25, "8", null, Number.NaN]) {
+    for (const score of [-1, 10.1, 7.25, 8.15, "8", null, Number.NaN]) {
       const response = await rate(cookie, "d1", score);
       expect(response.status, JSON.stringify(score)).toBe(400);
     }
@@ -193,11 +203,11 @@ describe("GET /api/drinks/:id/ratings", () => {
     expect(body.community).toEqual({ average: null, count: 0 });
   });
 
-  it("groups half points down into their whole-number band", async () => {
+  it("groups tenths down into their whole-number band", async () => {
     const a = await register("carl", "carl@example.com");
     const b = await register("ally", "ally@example.com");
     await rate(a, "d1", 8); // band 8
-    await rate(b, "d1", 8.5); // also band 8
+    await rate(b, "d1", 8.9); // also band 8
 
     const response = await SELF.fetch(`${BASE}/drinks/d1/ratings`);
     const body = await response.json<RatingBreakdownResponse>();

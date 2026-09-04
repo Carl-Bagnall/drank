@@ -152,8 +152,8 @@ describe("collection entries", () => {
 });
 
 describe("ratings", () => {
-  it("accepts the full half-point range", async () => {
-    for (const score of [0, 15, 20]) {
+  it("accepts the full tenths range", async () => {
+    for (const score of [0, 75, 82, 100]) {
       const result = await env.DB.prepare(
         "INSERT INTO ratings (id, user_id, drink_id, score) VALUES (?, ?, ?, ?)",
       )
@@ -165,8 +165,8 @@ describe("ratings", () => {
     }
   });
 
-  it("rejects a score outside 0-20 half-points", async () => {
-    for (const score of [-1, 21]) {
+  it("rejects a score outside 0-100 tenths", async () => {
+    for (const score of [-1, 101]) {
       await expect(
         env.DB.prepare(
           "INSERT INTO ratings (id, user_id, drink_id, score) VALUES (?, ?, ?, ?)",
@@ -181,14 +181,14 @@ describe("ratings", () => {
     await env.DB.prepare(
       "INSERT INTO ratings (id, user_id, drink_id, score) VALUES (?, ?, ?, ?)",
     )
-      .bind("rating-1", USER_ID, DRINK_ID, 16)
+      .bind("rating-1", USER_ID, DRINK_ID, 80)
       .run();
 
     await expect(
       env.DB.prepare(
         "INSERT INTO ratings (id, user_id, drink_id, score) VALUES (?, ?, ?, ?)",
       )
-        .bind("rating-2", USER_ID, DRINK_ID, 18)
+        .bind("rating-2", USER_ID, DRINK_ID, 90)
         .run(),
     ).rejects.toThrow();
   });
@@ -203,14 +203,14 @@ describe("ratings", () => {
     await env.DB.batch([
       env.DB.prepare(
         "INSERT INTO ratings (id, user_id, drink_id, score) VALUES (?, ?, ?, ?)",
-      ).bind("r1", USER_ID, DRINK_ID, 16),
+      ).bind("r1", USER_ID, DRINK_ID, 80),
       env.DB.prepare(
         "INSERT INTO ratings (id, user_id, drink_id, score) VALUES (?, ?, ?, ?)",
-      ).bind("r2", "user-b", DRINK_ID, 18),
+      ).bind("r2", "user-b", DRINK_ID, 90),
     ]);
 
     const row = await env.DB.prepare(
-      "SELECT AVG(score) / 2.0 AS average, COUNT(*) AS count FROM ratings WHERE drink_id = ?",
+      "SELECT AVG(score) / 10.0 AS average, COUNT(*) AS count FROM ratings WHERE drink_id = ?",
     )
       .bind(DRINK_ID)
       .first<{ average: number; count: number }>();

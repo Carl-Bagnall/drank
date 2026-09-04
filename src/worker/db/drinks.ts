@@ -58,10 +58,12 @@ export interface ListDrinksOptions {
 export const DEFAULT_LIMIT = 24;
 export const MAX_LIMIT = 60;
 
-/** Rounds a stored half-point average onto the 0–10 scale, or null. */
+/** Rounds a stored tenths average onto the 0–10 scale, or null. */
 function toCommunityAverage(avgScore: number | null): number | null {
   if (avgScore === null) return null;
-  return Math.round((avgScore / 2) * 10) / 10;
+  // avgScore is a mean of tenths. Rounding it to a whole tenth and then
+  // dividing gives the 0–10 scale to one decimal place.
+  return Math.round(avgScore) / 10;
 }
 
 function toSummary(row: DrinkRow): DrinkSummary {
@@ -76,7 +78,7 @@ function toSummary(row: DrinkRow): DrinkSummary {
       average: toCommunityAverage(row.avg_score),
       count: row.rating_count,
     },
-    viewerRating: row.viewer_score === null ? null : row.viewer_score / 2,
+    viewerRating: row.viewer_score === null ? null : row.viewer_score / 10,
     inViewerCollection: row.in_collection === 1,
   };
 }
@@ -229,7 +231,7 @@ export async function getDrinkById(
       average: toCommunityAverage(row.avg_score),
       count: row.rating_count,
     },
-    viewerRating: row.viewer_score === null ? null : row.viewer_score / 2,
+    viewerRating: row.viewer_score === null ? null : row.viewer_score / 10,
     inViewerCollection: row.in_collection === 1,
     viewerEntry:
       row.in_collection === 1

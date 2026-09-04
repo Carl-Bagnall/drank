@@ -8,9 +8,16 @@
 -- drink. Some rows intentionally have NULL image_url / flavour / barcode so
 -- the incomplete-product path and image placeholders get exercised.
 
+-- Only rows the seed itself owns are deleted.
+--
+-- Drinks are deliberately NOT deleted, even though the seed created them.
+-- Real users' ratings and collection entries reference them, and
+-- ON DELETE CASCADE on ratings.drink_id and collection_entries.drink_id means
+-- deleting a drink silently destroys that user data. Re-running the seed must
+-- be safe on a database somebody is actually using, so drinks are upserted
+-- below instead.
 DELETE FROM ratings            WHERE id LIKE 'seed-%';
 DELETE FROM collection_entries WHERE id LIKE 'seed-%';
-DELETE FROM drinks             WHERE id LIKE 'seed-%';
 DELETE FROM users              WHERE id LIKE 'seed-%';
 
 -- ---------------------------------------------------------------------------
@@ -103,7 +110,24 @@ VALUES
 
   -- Deliberately incomplete: name + brand only, as a user contribution would be.
   ('seed-incomplete-1', 'Cherry Cream Soda', 'Local Fizz Co', 'local fizz co', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-demo'),
-  ('seed-incomplete-2', 'Elderflower Pop', 'Hedgerow Sodas', 'hedgerow sodas', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-ally');
+  ('seed-incomplete-2', 'Elderflower Pop', 'Hedgerow Sodas', 'hedgerow sodas', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-ally')
+-- Upsert rather than delete-and-insert, so a drink row keeps its identity and
+-- nothing referencing it is cascaded away. This is what makes the seed safe to
+-- re-run against a database with real users in it.
+ON CONFLICT(id) DO UPDATE SET
+  name               = excluded.name,
+  brand              = excluded.brand,
+  brand_normalised   = excluded.brand_normalised,
+  flavour            = excluded.flavour,
+  category           = excluded.category,
+  country            = excluded.country,
+  volume_ml          = excluded.volume_ml,
+  packaging          = excluded.packaging,
+  barcode            = excluded.barcode,
+  caffeine_status    = excluded.caffeine_status,
+  sugar_status       = excluded.sugar_status,
+  description        = excluded.description,
+  created_by_user_id = excluded.created_by_user_id;
 
 -- Spread the catalogue over the past six months. Inserted in one statement,
 -- every drink would otherwise share a created_at to the millisecond, which
@@ -116,8 +140,8 @@ WHERE id LIKE 'seed-%';
 
 -- ---------------------------------------------------------------------------
 -- Ratings — each seed user rates roughly 60% of the catalogue, scored
--- 4.5..9.5 (stored as half-points 9..19). Gives the community-rating query
--- something realistic to average.
+-- 4.5..9.5 (stored as tenths 45..95). Gives the community-rating query
+-- something realistic to average, at the full 0.1 resolution.
 --
 -- The selection and the score are derived from a hash of the user and drink
 -- ids rather than random(), for two reasons:
@@ -131,9 +155,9 @@ INSERT OR IGNORE INTO ratings (id, user_id, drink_id, score)
 SELECT 'seed-r-' || u.id || '-' || d.id,
        u.id,
        d.id,
-       9 + ((unicode(substr(d.id, -1)) * 19
-             + unicode(substr(d.id, -3, 1)) * 31
-             + unicode(substr(u.id, -2, 1)) * 11) % 11)
+       45 + ((unicode(substr(d.id, -1)) * 19
+              + unicode(substr(d.id, -3, 1)) * 31
+              + unicode(substr(u.id, -2, 1)) * 11) % 51)
 FROM users u
 CROSS JOIN drinks d
 WHERE u.id LIKE 'seed-user-%'
@@ -145,14 +169,15 @@ WHERE u.id LIKE 'seed-user-%'
         + length(u.id) * 37) % 100) < 60;
 
 -- ---------------------------------------------------------------------------
--- A starter collection for the demo user: everything they rated 7.5 or above.
+-- A starter collection for the demo user: everything they rated 7.5 or above
+-- (75 tenths).
 -- ---------------------------------------------------------------------------
 INSERT OR IGNORE INTO collection_entries (id, user_id, drink_id, is_favourite, notes)
 SELECT 'seed-c-' || r.drink_id,
        r.user_id,
        r.drink_id,
-       CASE WHEN r.score >= 18 THEN 1 ELSE 0 END,
-       CASE WHEN r.score >= 19 THEN 'One of the best I have tried.' ELSE NULL END
+       CASE WHEN r.score >= 90 THEN 1 ELSE 0 END,
+       CASE WHEN r.score >= 95 THEN 'One of the best I have tried.' ELSE NULL END
 FROM ratings r
 WHERE r.user_id = 'seed-user-demo'
-  AND r.score >= 15;
+  AND r.score >= 75;

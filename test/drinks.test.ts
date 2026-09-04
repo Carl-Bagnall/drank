@@ -86,8 +86,8 @@ describe("GET /api/drinks", () => {
 
   it("averages the community rating on the 0-10 scale", async () => {
     await insertDrink({ id: "a", name: "Fanta", brand: "Fanta" });
-    await rate("u1", "a", 16); // 8.0
-    await rate("u2", "a", 19); // 9.5
+    await rate("u1", "a", 80); // 8.0
+    await rate("u2", "a", 95); // 9.5
 
     const body = await (await SELF.fetch(`${BASE}/drinks`)).json<DrinkListResponse>();
     expect(body.items[0]!.community).toEqual({ average: 8.8, count: 2 });
@@ -143,7 +143,7 @@ describe("GET /api/drinks", () => {
   it("sorts unrated drinks last when sorting by rating", async () => {
     await insertDrink({ id: "rated", name: "Rated", brand: "R" });
     await insertDrink({ id: "unrated", name: "Unrated", brand: "U" });
-    await rate("u1", "rated", 12);
+    await rate("u1", "rated", 60);
 
     const body = await (
       await SELF.fetch(`${BASE}/drinks?sort=rating`)
@@ -188,7 +188,7 @@ describe("GET /api/drinks/:id", () => {
     await insertDrink({ id: "cherry", name: "Coke Cherry", brand: "Coca-Cola" });
     await insertDrink({ id: "vanilla", name: "Coke Vanilla", brand: "Coca-Cola" });
     await insertDrink({ id: "other", name: "Pepsi", brand: "Pepsi" });
-    await rate("u1", "cherry", 15);
+    await rate("u1", "cherry", 75);
 
     const response = await SELF.fetch(`${BASE}/drinks/cherry`);
     expect(response.status).toBe(200);

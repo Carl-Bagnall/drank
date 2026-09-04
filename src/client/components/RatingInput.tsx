@@ -3,7 +3,9 @@ import { useNavigate } from "react-router";
 import type { CommunityRating } from "../../shared/types";
 import {
   RATING_MAX,
+  RATING_MAX_TENTHS,
   RATING_MIN,
+  RATING_MIN_TENTHS,
   RATING_STEP,
   formatRating,
 } from "../../shared/rating";
@@ -11,10 +13,15 @@ import * as api from "../api";
 import { useAuth } from "../auth";
 
 /**
- * Rate a drink from 0 to 10 in half points.
+ * Rate a drink from 0 to 10, in steps of 0.1.
  *
  * Rating is independent of collecting — the two are separate tables — so this
  * appears on any drink, whether or not the viewer owns it.
+ *
+ * The slider is for choosing roughly; the −/+ buttons are for landing exactly.
+ * At 0.1 precision the track holds 100 steps, which is about three pixels each
+ * on a phone, so dragging alone cannot reliably hit a specific value like 8.2.
+ * Keyboard users get the same precision from the arrow keys natively.
  *
  * Saving is an explicit button rather than firing on every slider movement:
  * a range input emits a change per step, which would mean a request per pixel
@@ -32,8 +39,8 @@ export function RatingInput({
   const { user, refresh } = useAuth();
   const navigate = useNavigate();
 
-  // 7.5 is a sensible neutral starting point for someone who has not rated:
-  // high enough not to feel like a default insult, off the extremes.
+  // 7.5 is a neutral starting point for someone who has not rated: high
+  // enough not to read as a default insult, and off the extremes.
   const [value, setValue] = useState(initialRating ?? 7.5);
   const [saved, setSaved] = useState(initialRating);
   const [busy, setBusy] = useState(false);
@@ -60,6 +67,21 @@ export function RatingInput({
         </button>
       </section>
     );
+  }
+
+  /**
+   * Steps by whole tenths, so repeated nudges cannot accumulate float drift.
+   *
+   * Uses the updater form deliberately. Reading `value` from the closure means
+   * several taps inside one React batch all see the same stale number and only
+   * the last survives — tapping + quickly to get from 7.5 to 8.2 would land on
+   * 7.6. The updater always sees the pending value.
+   */
+  function nudge(deltaTenths: number) {
+    setValue((current) => {
+      const tenths = Math.round(current * 10) + deltaTenths;
+      return Math.min(RATING_MAX_TENTHS, Math.max(RATING_MIN_TENTHS, tenths)) / 10;
+    });
   }
 
   async function save() {
@@ -99,14 +121,29 @@ export function RatingInput({
 
   return (
     <section className="sticker mt-5 px-4 py-4" aria-labelledby="rate-heading">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="rate-heading" className="eyebrow">
-          {saved === null ? "Rate this drink" : "Your rating"}
-        </h2>
-        <span className="sticker-sm bg-lime px-3 py-1 font-display text-lg leading-none text-ink">
+      <h2 id="rate-heading" className="eyebrow">
+        {saved === null ? "Rate this drink" : "Your rating"}
+      </h2>
+
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <NudgeButton
+          label="Decrease rating by 0.1"
+          symbol="−"
+          onClick={() => nudge(-1)}
+          disabled={value <= RATING_MIN}
+        />
+
+        <span className="sticker-sm min-w-[6rem] bg-lime px-3 py-2 text-center font-display text-2xl leading-none text-ink">
           {formatRating(value)}
           <span className="ml-0.5 text-xs font-medium">/ 10</span>
         </span>
+
+        <NudgeButton
+          label="Increase rating by 0.1"
+          symbol="+"
+          onClick={() => nudge(1)}
+          disabled={value >= RATING_MAX}
+        />
       </div>
 
       <label htmlFor="rating" className="sr-only">
@@ -127,7 +164,10 @@ export function RatingInput({
       />
 
       {/* Endpoint labels, so the scale is readable without dragging. */}
-      <div aria-hidden="true" className="flex justify-between px-0.5 text-[0.625rem] font-semibold text-ink-muted">
+      <div
+        aria-hidden="true"
+        className="flex justify-between px-0.5 text-[0.625rem] font-semibold text-ink-muted"
+      >
         <span>0</span>
         <span>5</span>
         <span>10</span>
@@ -155,7 +195,10 @@ export function RatingInput({
         )}
       </div>
 
-      <p aria-live="polite" className="mt-2 text-center text-xs font-medium text-ink-muted">
+      <p
+        aria-live="polite"
+        className="mt-2 text-center text-xs font-medium text-ink-muted"
+      >
         {error ? (
           <span className="text-cherry-dark">{error}</span>
         ) : saved !== null && !dirty ? (
@@ -163,5 +206,29 @@ export function RatingInput({
         ) : null}
       </p>
     </section>
+  );
+}
+
+function NudgeButton({
+  label,
+  symbol,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  symbol: string;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="sticker-sm flex size-11 shrink-0 items-center justify-center bg-surface font-display text-xl leading-none text-ink disabled:opacity-40"
+    >
+      <span aria-hidden="true">{symbol}</span>
+    </button>
   );
 }

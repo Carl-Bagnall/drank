@@ -47,7 +47,9 @@ interface CollectionRow {
 
 function toCommunityAverage(avgScore: number | null): number | null {
   if (avgScore === null) return null;
-  return Math.round((avgScore / 2) * 10) / 10;
+  // avgScore is a mean of tenths. Rounding it to a whole tenth and then
+  // dividing gives the 0–10 scale to one decimal place.
+  return Math.round(avgScore) / 10;
 }
 
 function toItem(row: CollectionRow): CollectionItem {
@@ -62,7 +64,7 @@ function toItem(row: CollectionRow): CollectionItem {
       average: toCommunityAverage(row.avg_score),
       count: row.rating_count,
     },
-    viewerRating: row.viewer_score === null ? null : row.viewer_score / 2,
+    viewerRating: row.viewer_score === null ? null : row.viewer_score / 10,
     inViewerCollection: true,
     addedAt: row.added_at,
     notes: row.notes,

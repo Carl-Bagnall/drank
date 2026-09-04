@@ -57,7 +57,7 @@ npm run db:migrate:remote   # against Cloudflare
 npm run db:seed             # local
 ```
 
-54 drinks across 27 brands and 11 countries, 5 users and ~160 ratings. The seed is re-runnable — it deletes and recreates everything prefixed `seed-`. **Do not run it against production.**
+54 drinks across 27 brands and 11 countries, 5 users and ~160 ratings. The seed is re-runnable and safe on a database with real users in it: it replaces only rows it owns, and upserts drinks rather than deleting them, because deleting a drink would cascade away real ratings and collection entries. **Do not run it against production.**
 
 ## 6. Configure environment variables
 
@@ -135,7 +135,7 @@ test/             Vitest suites, run inside workerd against real D1
 | `POST /api/users/me/collection` | Add a drink (`{ drinkId }`) |
 | `PATCH /api/users/me/collection/:drinkId` | Update notes and favourite status |
 | `DELETE /api/users/me/collection/:drinkId` | Remove a drink |
-| `POST /api/drinks/:id/rating` | Set your score (`{ score }`, 0–10 in half points). Upserts |
+| `POST /api/drinks/:id/rating` | Set your score (`{ score }`, 0–10 in steps of 0.1). Upserts |
 | `DELETE /api/drinks/:id/rating` | Withdraw your score |
 | `GET /api/drinks/:id/ratings` | Community spread across eleven whole-number bands. Public |
 
@@ -177,7 +177,7 @@ Fixing it properly means not answering at signup time: accept the registration, 
 Five tables: `users`, `drinks`, `collection_entries`, `ratings`, `sessions`.
 
 - **Only `name` and `brand` are required on a drink.** The catalogue must accept incomplete, user-contributed products.
-- **Ratings are stored as integer half-points, 0–20**, representing 0.0–10.0. Integers make the range check trivial and avoid floating-point comparison bugs. All conversion lives in `src/shared/rating.ts`.
+- **Ratings are stored as integer tenths, 0–100**, representing 0.0–10.0 in steps of 0.1. Integers keep the range check exact and keep floating-point values out of the database. All conversion lives in `src/shared/rating.ts`.
 - **The community rating is not stored.** It is averaged at query time against an index on `ratings(drink_id)`.
 - **A collection entry carries no rating.** `ratings` is the single source of truth, which keeps "owning" and "rating" separate — you can rate a drink you do not own.
 - **Barcodes are optional but unique when present**, via a partial unique index.

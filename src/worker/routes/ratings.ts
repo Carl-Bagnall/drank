@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../index";
 import type { ApiError } from "../../shared/types";
-import { RATING_MAX, RATING_MIN, RATING_STEP, isValidRating, toHalfPoints } from "../../shared/rating";
+import {
+  RATING_MAX,
+  RATING_MIN,
+  RATING_STEP,
+  isValidRating,
+  toTenths,
+} from "../../shared/rating";
 import {
   deleteRating,
   getRatingBreakdown,
@@ -39,7 +45,7 @@ ratings.post("/drinks/:id/rating", async (c) => {
     return c.json(error, 400);
   }
 
-  const result = await setRating(c.env.DB, user.id, drinkId, toHalfPoints(score));
+  const result = await setRating(c.env.DB, user.id, drinkId, toTenths(score));
 
   if (result.status === "no_such_drink") {
     const error: ApiError = {

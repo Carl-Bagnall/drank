@@ -15,7 +15,9 @@ export type SetRatingResult =
 
 function toCommunityAverage(avgScore: number | null): number | null {
   if (avgScore === null) return null;
-  return Math.round((avgScore / 2) * 10) / 10;
+  // avgScore is a mean of tenths. Rounding it to a whole tenth and then
+  // dividing gives the 0–10 scale to one decimal place.
+  return Math.round(avgScore) / 10;
 }
 
 export async function getCommunityRating(
@@ -85,16 +87,16 @@ export async function deleteRating(
 
 export interface RatingBreakdown {
   community: CommunityRating;
-  /** Counts per whole-number band, 0–10. Half points round down into a band. */
+  /** Counts per whole-number band, 0–10. Tenths round down into a band. */
   distribution: { score: number; count: number }[];
 }
 
 /**
  * How a drink's ratings are spread.
  *
- * Grouped into eleven whole-number bands rather than twenty-one half-point
- * ones: at this catalogue's size a per-half-point histogram is mostly empty
- * columns, and bands read faster on a phone.
+ * Grouped into eleven whole-number bands rather than 101 tenth-point ones:
+ * a histogram at that resolution would be almost entirely empty columns, and
+ * bands read faster on a phone.
  */
 export async function getRatingBreakdown(
   db: D1Database,
@@ -102,7 +104,7 @@ export async function getRatingBreakdown(
 ): Promise<RatingBreakdown> {
   const { results } = await db
     .prepare(
-      `SELECT CAST(score / 2 AS INTEGER) AS band, COUNT(*) AS count
+      `SELECT CAST(score / 10 AS INTEGER) AS band, COUNT(*) AS count
        FROM ratings
        WHERE drink_id = ?
        GROUP BY band
