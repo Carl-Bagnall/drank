@@ -1,0 +1,42 @@
+{
+  "name": "drank",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Drank — a community-driven catalogue and collection app for soft drinks.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy -c dist/drank/wrangler.json",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cf-typegen": "wrangler types",
+    "db:migrate": "wrangler d1 migrations apply drank --local",
+    "db:migrate:remote": "wrangler d1 migrations apply drank --remote",
+    "db:seed": "wrangler d1 execute drank --local --file=./seed/seed.sql",
+    "db:seed:remote": "wrangler d1 execute drank --remote --file=./seed/seed.sql",
+    "db:studio": "wrangler d1 execute drank --local --command=\"SELECT name FROM sqlite_master WHERE type='table'\""
+  },
+  "dependencies": {
+    "hono": "^4.13.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^8.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.4",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.129.0"
+  }
+}
