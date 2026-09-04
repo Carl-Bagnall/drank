@@ -18,7 +18,7 @@
     {
       "binding": "DB",
       "database_name": "drank",
-      "database_id": "PLACEHOLDER_SET_BY_WRANGLER_D1_CREATE",
+      "database_id": "1fc9ed51-d8f3-457b-a77f-8a1d16963d2a",
       "migrations_dir": "./migrations"
     }
   ],
