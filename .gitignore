@@ -27,3 +27,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Design reference images — kept locally, not published to the repo.
+Refs/Design/
