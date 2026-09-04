@@ -261,6 +261,41 @@ describe("login and logout", () => {
     expect(after.status).toBe(401);
   });
 
+  it("marks the cookie Secure over HTTPS but not over plain HTTP", async () => {
+    // Browsers silently discard a Secure cookie delivered over plain HTTP.
+    // Keying this off the hostname rather than the protocol broke sign-in on
+    // 127.0.0.1 and on the LAN address used to test from a phone: the cookie
+    // was thrown away, so the very next request was unauthenticated.
+    const secureResponse = await SELF.fetch("https://drank.test/api/auth/register", {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: "https_user",
+        email: "https@example.com",
+        password: "correct horse battery",
+      }),
+    });
+    const insecureResponse = await SELF.fetch("http://drank.test/api/auth/register", {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: "http_user",
+        email: "http@example.com",
+        password: "correct horse battery",
+      }),
+    });
+
+    expect(secureResponse.headers.get("set-cookie")).toContain("Secure");
+    expect(insecureResponse.headers.get("set-cookie")).not.toContain("Secure");
+
+    // The protections that do not depend on the transport must hold either way.
+    for (const response of [secureResponse, insecureResponse]) {
+      const header = response.headers.get("set-cookie") ?? "";
+      expect(header).toContain("HttpOnly");
+      expect(header).toContain("SameSite=Lax");
+    }
+  });
+
   it("stores only a hash of the session token, never the token", async () => {
     const { cookie } = await register();
     const token = cookie.split("=")[1]!;

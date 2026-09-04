@@ -133,15 +133,21 @@ export function readSessionCookie(c: Context): string | undefined {
  * means the browser will not attach it to cross-site POSTs, which is what
  * stops a CSRF form submission from acting as the user.
  *
- * `secure` is off on plain-HTTP localhost, because browsers refuse Secure
- * cookies there and local development would be unable to sign in at all.
+ * `secure` follows the request protocol rather than the hostname. Browsers
+ * silently discard a Secure cookie delivered over plain HTTP, so keying this
+ * off `hostname === "localhost"` broke every other way of reaching a dev
+ * server — 127.0.0.1, and the LAN address used to test on a real phone. The
+ * symptom was a successful sign-in that immediately bounced back to signed
+ * out, because the cookie was thrown away before the next request.
+ *
+ * Production is served over HTTPS, so this still sets Secure there.
  */
 export function setSessionCookie(c: Context, token: string): void {
-  const isLocalhost = new URL(c.req.url).hostname === "localhost";
+  const isHttps = new URL(c.req.url).protocol === "https:";
 
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: !isLocalhost,
+    secure: isHttps,
     sameSite: "Lax",
     path: "/",
     maxAge: SESSION_DAYS * 86_400,
