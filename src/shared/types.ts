@@ -166,3 +166,16 @@ export interface CollectionListResponse {
 export interface AuthResponse {
   user: PublicUser;
 }
+
+/** Response shape of POST and DELETE /api/drinks/:id/rating. */
+export interface RatingResponse {
+  viewerRating: number | null;
+  community: CommunityRating;
+}
+
+/** Response shape of GET /api/drinks/:id/ratings. */
+export interface RatingBreakdownResponse {
+  community: CommunityRating;
+  /** Counts per whole-number band, 0–10. */
+  distribution: { score: number; count: number }[];
+}

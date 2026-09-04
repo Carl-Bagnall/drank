@@ -7,6 +7,8 @@ import type {
   DrinkListResponse,
   Facets,
   MeResponse,
+  RatingBreakdownResponse,
+  RatingResponse,
 } from "../shared/types";
 
 /**
@@ -217,4 +219,33 @@ export function updateCollectionEntry(
     method: "PATCH",
     body: JSON.stringify(changes),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Ratings
+// ---------------------------------------------------------------------------
+
+/** Sets the signed-in user's score (0–10, half points). Upserts. */
+export function setRating(drinkId: string, score: number): Promise<RatingResponse> {
+  return apiFetch<RatingResponse>(
+    `/drinks/${encodeURIComponent(drinkId)}/rating`,
+    { method: "POST", body: JSON.stringify({ score }) },
+  );
+}
+
+export function deleteRating(drinkId: string): Promise<RatingResponse> {
+  return apiFetch<RatingResponse>(
+    `/drinks/${encodeURIComponent(drinkId)}/rating`,
+    { method: "DELETE" },
+  );
+}
+
+export function getRatingBreakdown(
+  drinkId: string,
+  signal?: AbortSignal,
+): Promise<RatingBreakdownResponse> {
+  return apiFetch<RatingBreakdownResponse>(
+    `/drinks/${encodeURIComponent(drinkId)}/ratings`,
+    { signal },
+  );
 }

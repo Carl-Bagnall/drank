@@ -6,6 +6,7 @@ import { ValidationError } from "./validate";
 import { auth } from "./routes/auth";
 import { drinks } from "./routes/drinks";
 import { health } from "./routes/health";
+import { ratings } from "./routes/ratings";
 import { users } from "./routes/users";
 
 export interface Env {
@@ -65,6 +66,7 @@ app.onError((err, c) => {
 app.route("/api", health);
 app.route("/api", auth);
 app.route("/api", drinks);
+app.route("/api", ratings);
 app.route("/api", users);
 
 export default app;

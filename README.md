@@ -4,7 +4,7 @@ A community-driven catalogue and collection app for soft drinks — "Discogs for
 
 Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
 
-> **Status: Phase 3 (accounts and collections).** Create an account, browse and search the catalogue, and build a private collection with notes and favourites. Submitting your own ratings is not built yet — see [Roadmap](#roadmap).
+> **Status: Phase 4 (ratings).** Create an account, browse and search the catalogue, build a private collection with notes and favourites, and rate drinks 0–10. Open Food Facts lookup and barcode scanning are next — see [Roadmap](#roadmap).
 
 ---
 
@@ -135,6 +135,9 @@ test/             Vitest suites, run inside workerd against real D1
 | `POST /api/users/me/collection` | Add a drink (`{ drinkId }`) |
 | `PATCH /api/users/me/collection/:drinkId` | Update notes and favourite status |
 | `DELETE /api/users/me/collection/:drinkId` | Remove a drink |
+| `POST /api/drinks/:id/rating` | Set your score (`{ score }`, 0–10 in half points). Upserts |
+| `DELETE /api/drinks/:id/rating` | Withdraw your score |
+| `GET /api/drinks/:id/ratings` | Community spread across eleven whole-number bands. Public |
 
 **There is no separate `/api/search`.** The brief suggests one, but searching differs from listing only by a `WHERE` clause — a second route would duplicate the sorting, pagination and rating-aggregation logic for no benefit. Search is `GET /api/drinks?q=…`.
 
@@ -222,7 +225,7 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | 1 | Foundation: tooling, shell, routing, schema, seed, tests | **Done** |
 | 2 | Catalogue: drink API, cards, detail page, search, discovery | **Done** |
 | 3 | Accounts and collections | **Done** |
-| 4 | Ratings UI: personal and community | Next |
-| 5 | Open Food Facts lookup and barcode scanning | |
+| 4 | Ratings UI: personal and community | **Done** |
+| 5 | Open Food Facts lookup and barcode scanning | Next |
 | 6 | Polish: mobile UX, accessibility, performance | |
 | 7 | Production deployment and GitHub workflows | |

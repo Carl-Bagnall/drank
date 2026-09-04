@@ -166,6 +166,60 @@
     background-color: var(--color-citrus);
   }
 
+  /* ---------------------------------------------------------------------
+     Rating slider
+     ---------------------------------------------------------------------
+     A native range input, styled. Chosen over a row of tappable stars
+     because 21 half-point values cannot be hit accurately with a thumb, and
+     because the native control brings keyboard support, focus handling and
+     screen-reader value announcement for free.
+  --------------------------------------------------------------------- */
+  .rating-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    /* Comfortably above the 44px touch-target guidance. */
+    height: 2.75rem;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .rating-slider::-webkit-slider-runnable-track {
+    height: 14px;
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-sunken);
+  }
+
+  .rating-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 30px;
+    height: 30px;
+    /* Centres the thumb on the track: (track height - thumb) / 2. */
+    margin-top: -11px;
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-cherry);
+    box-shadow: var(--shadow-sticker-sm);
+  }
+
+  .rating-slider::-moz-range-track {
+    height: 14px;
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-sunken);
+  }
+
+  .rating-slider::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-cherry);
+    box-shadow: var(--shadow-sticker-sm);
+  }
+
   /* A small uppercase label used above sections. */
   .eyebrow {
     font-family: var(--font-display);

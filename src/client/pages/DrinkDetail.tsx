@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
-import type { DrinkDetailResponse } from "../../shared/types";
+import type { CommunityRating, DrinkDetailResponse } from "../../shared/types";
 import { getDrink } from "../api";
 import { DrinkImage } from "../components/DrinkImage";
 import { DrinkGrid } from "../components/DrinkGrid";
 import { RatingBadge } from "../components/Rating";
+import { RatingInput } from "../components/RatingInput";
 import { CollectButton } from "../components/CollectButton";
 import { CollectionNotes } from "../components/CollectionNotes";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
@@ -42,6 +43,8 @@ export function DrinkDetail() {
   // Mirrors the collect button so the notes panel appears and disappears
   // with it, without refetching the drink.
   const [collected, setCollected] = useState(false);
+  const [community, setCommunity] = useState<CommunityRating>({ average: null, count: 0 });
+  const [viewerRating, setViewerRating] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -52,6 +55,8 @@ export function DrinkDetail() {
       .then((response) => {
         setData(response);
         setCollected(response.inViewerCollection);
+        setCommunity(response.community);
+        setViewerRating(response.viewerRating);
         setStatus("ready");
       })
       .catch((err: unknown) => {
@@ -101,7 +106,7 @@ export function DrinkDetail() {
     );
   }
 
-  const { drink, community, siblings, viewerRating } = data;
+  const { drink, siblings } = data;
 
   const facts: { label: string; value: string }[] = [];
   if (drink.flavour) facts.push({ label: "Flavour", value: drink.flavour });
@@ -174,6 +179,15 @@ export function DrinkDetail() {
           </div>
         </div>
       </div>
+
+      <RatingInput
+        drinkId={drink.id}
+        initialRating={data.viewerRating}
+        onRated={(next, nextCommunity) => {
+          setViewerRating(next);
+          setCommunity(nextCommunity);
+        }}
+      />
 
       {collected && (
         <CollectionNotes
