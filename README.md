@@ -4,7 +4,7 @@ A community-driven catalogue and collection app for soft drinks — "Discogs for
 
 Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
 
-> **Status: Phase 1 (foundation).** The application shell, design system, database schema and seed data are in place. The catalogue, search, accounts, collections and ratings are not built yet — see [Roadmap](#roadmap).
+> **Status: Phase 2 (catalogue).** Browse, search, filter and view drinks, with community ratings. Accounts, collections and rating submission are not built yet — see [Roadmap](#roadmap).
 
 ---
 
@@ -71,7 +71,7 @@ npm run dev
 
 Open <http://localhost:5173>. The Cloudflare Vite plugin runs the Worker in workerd alongside Vite, so the local app uses real bindings and a real D1 database rather than mocks.
 
-The home screen shows a foundation status panel. `Database: connected` with a non-zero drink count means the full stack — React → API → Hono → D1 — is working.
+The home screen shows two shelves of drinks. If they load, the full stack — React → API → Hono → D1 — is working. `GET /api/health` reports the same thing as JSON, and is the quicker check when something looks wrong.
 
 ## 8. Deploy
 
@@ -116,6 +116,21 @@ test/             Vitest suites, run inside workerd against real D1
 **One Worker serves everything.** The built SPA is served as static assets and the API lives at `/api/*` on the same Worker. `assets.run_worker_first: ["/api/*"]` in `wrangler.jsonc` is load-bearing: without it, the single-page-application fallback would answer unknown API paths with `index.html` instead of a JSON 404.
 
 **Tests run against real D1.** `@cloudflare/vitest-pool-workers` executes the suite inside workerd, applying `migrations/` to an isolated database first. Schema guarantees — the unique constraint that stops duplicate collection entries, the rating range check — are therefore tested for real rather than mocked.
+
+### API
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/health` | Liveness, including a real D1 query |
+| `GET /api/drinks` | List, search and filter. Params: `q`, `brand`, `category`, `country`, `sort` (`recent`/`rating`/`name`), `limit`, `cursor` |
+| `GET /api/drinks/facets` | Filter options with counts, derived from the catalogue |
+| `GET /api/drinks/:id` | One drink, its community rating and its brand siblings |
+
+**There is no separate `/api/search`.** The brief suggests one, but searching differs from listing only by a `WHERE` clause — a second route would duplicate the sorting, pagination and rating-aggregation logic for no benefit. Search is `GET /api/drinks?q=…`.
+
+`cursor` is opaque and must be passed back verbatim. It currently encodes an offset; moving to keyset pagination later changes only that encoding, not the API shape.
+
+SQL lives in `src/worker/db/`, not in route handlers, so routes stay about HTTP and queries can be tested directly.
 
 ### Database
 
@@ -168,8 +183,8 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 1 | Foundation: tooling, shell, routing, schema, seed, tests | **Done** |
-| 2 | Catalogue: drink API, cards, detail page, search, discovery | Next |
-| 3 | Accounts and collections | |
+| 2 | Catalogue: drink API, cards, detail page, search, discovery | **Done** |
+| 3 | Accounts and collections | Next |
 | 4 | Ratings UI: personal and community | |
 | 5 | Open Food Facts lookup and barcode scanning | |
 | 6 | Polish: mobile UX, accessibility, performance | |

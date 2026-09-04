@@ -105,6 +105,15 @@ VALUES
   ('seed-incomplete-1', 'Cherry Cream Soda', 'Local Fizz Co', 'local fizz co', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-demo'),
   ('seed-incomplete-2', 'Elderflower Pop', 'Hedgerow Sodas', 'hedgerow sodas', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-ally');
 
+-- Spread the catalogue over the past six months. Inserted in one statement,
+-- every drink would otherwise share a created_at to the millisecond, which
+-- makes "recently added" arbitrary and untestable. Derived from rowid so the
+-- ordering is identical on every machine.
+UPDATE drinks
+SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || ((rowid * 7) % 180) || ' days'),
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || ((rowid * 7) % 180) || ' days')
+WHERE id LIKE 'seed-%';
+
 -- ---------------------------------------------------------------------------
 -- Ratings — each seed user rates roughly 60% of the catalogue, scored
 -- 4.5..9.5 (stored as half-points 9..19). Gives the community-rating query

@@ -31,6 +31,7 @@
   /* Ink — text, and every outline in the app */
   --color-ink: #141210;
   --color-ink-muted: #5d564c;
+  --color-ink-faint: #9a9184;
 
   /* Flavour accents. These double as category colours later, which is why
      there are six rather than one brand colour. */

@@ -1,4 +1,9 @@
-import type { ApiError } from "../shared/types";
+import type {
+  ApiError,
+  DrinkDetailResponse,
+  DrinkListResponse,
+  Facets,
+} from "../shared/types";
 
 /**
  * Thin fetch wrapper for the Drank API.
@@ -70,4 +75,46 @@ export interface HealthResponse {
 
 export function getHealth(): Promise<HealthResponse> {
   return apiFetch<HealthResponse>("/health");
+}
+
+export interface DrinkQuery {
+  q?: string;
+  brand?: string;
+  category?: string;
+  country?: string;
+  sort?: "recent" | "rating" | "name";
+  limit?: number;
+  cursor?: string;
+}
+
+/** Builds the query string, omitting empty values so URLs stay readable. */
+function toSearchParams(query: DrinkQuery): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export function getDrinks(
+  query: DrinkQuery = {},
+  signal?: AbortSignal,
+): Promise<DrinkListResponse> {
+  return apiFetch<DrinkListResponse>(`/drinks${toSearchParams(query)}`, { signal });
+}
+
+export function getDrink(
+  id: string,
+  signal?: AbortSignal,
+): Promise<DrinkDetailResponse> {
+  return apiFetch<DrinkDetailResponse>(`/drinks/${encodeURIComponent(id)}`, {
+    signal,
+  });
+}
+
+export function getFacets(signal?: AbortSignal): Promise<Facets> {
+  return apiFetch<Facets>("/drinks/facets", { signal });
 }

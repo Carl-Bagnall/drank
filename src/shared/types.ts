@@ -70,6 +70,7 @@ export interface DrinkSummary {
   name: string;
   brand: string;
   flavour: string | null;
+  category: string | null;
   imageUrl: string | null;
   community: CommunityRating;
   /** Null when the request is unauthenticated. */
@@ -110,4 +111,34 @@ export interface Paginated<T> {
   items: T[];
   /** Opaque cursor for the next page, or null when the list is exhausted. */
   nextCursor: string | null;
+}
+
+/** One filter option and how many drinks carry it. */
+export interface Facet {
+  value: string;
+  count: number;
+}
+
+export interface Facets {
+  categories: Facet[];
+  countries: Facet[];
+  brands: Facet[];
+}
+
+/** Response shape of GET /api/drinks. */
+export interface DrinkListResponse {
+  items: DrinkSummary[];
+  total: number;
+  /** Opaque; pass back as `cursor`. Null when the list is exhausted. */
+  nextCursor: string | null;
+}
+
+/** Response shape of GET /api/drinks/:id. */
+export interface DrinkDetailResponse {
+  drink: Drink;
+  community: CommunityRating;
+  /** Other drinks from the same brand — the variant family. */
+  siblings: DrinkSummary[];
+  viewerRating: number | null;
+  inViewerCollection: boolean;
 }

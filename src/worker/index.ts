@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { ApiError } from "../shared/types";
 import { health } from "./routes/health";
+import { drinks } from "./routes/drinks";
 
 export interface Env {
   DB: D1Database;
@@ -34,5 +35,6 @@ app.onError((err, c) => {
 });
 
 app.route("/api", health);
+app.route("/api", drinks);
 
 export default app;
