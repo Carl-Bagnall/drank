@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Env } from "../index";
+import type { AppEnv } from "../index";
 
 /**
  * Health check.
@@ -9,7 +9,7 @@ import type { Env } from "../index";
  * success while the database binding is misconfigured, which is exactly the
  * failure this project needs to catch early.
  */
-export const health = new Hono<{ Bindings: Env }>();
+export const health = new Hono<AppEnv>();
 
 health.get("/health", async (c) => {
   const startedAt = Date.now();

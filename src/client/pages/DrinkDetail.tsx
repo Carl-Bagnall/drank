@@ -5,6 +5,8 @@ import { getDrink } from "../api";
 import { DrinkImage } from "../components/DrinkImage";
 import { DrinkGrid } from "../components/DrinkGrid";
 import { RatingBadge } from "../components/Rating";
+import { CollectButton } from "../components/CollectButton";
+import { CollectionNotes } from "../components/CollectionNotes";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
 import { countryName, humanise } from "../format";
 
@@ -37,6 +39,9 @@ export function DrinkDetail() {
     "loading",
   );
   const [errorMessage, setErrorMessage] = useState("");
+  // Mirrors the collect button so the notes panel appears and disappears
+  // with it, without refetching the drink.
+  const [collected, setCollected] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -46,6 +51,7 @@ export function DrinkDetail() {
     getDrink(id, controller.signal)
       .then((response) => {
         setData(response);
+        setCollected(response.inViewerCollection);
         setStatus("ready");
       })
       .catch((err: unknown) => {
@@ -160,15 +166,22 @@ export function DrinkDetail() {
           </div>
 
           <div className="mt-4">
-            <button type="button" disabled className="btn w-full opacity-60">
-              Add to collection
-            </button>
-            <p className="mt-2 text-center text-xs font-medium text-ink-muted">
-              Collections and ratings arrive with accounts in Phase 3.
-            </p>
+            <CollectButton
+              drinkId={drink.id}
+              initiallyCollected={data.inViewerCollection}
+              onChange={setCollected}
+            />
           </div>
         </div>
       </div>
+
+      {collected && (
+        <CollectionNotes
+          drinkId={drink.id}
+          initialNotes={data.viewerEntry?.notes ?? null}
+          initialFavourite={data.viewerEntry?.isFavourite ?? false}
+        />
+      )}
 
       {drink.description && (
         <section className="sticker mt-5 px-4 py-4">

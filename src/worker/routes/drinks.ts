@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Env } from "../index";
+import type { AppEnv } from "../index";
 import type { ApiError } from "../../shared/types";
 import { normaliseBrand } from "../../shared/brand";
 import {
@@ -12,7 +12,7 @@ import {
   type DrinkSort,
 } from "../db/drinks";
 
-export const drinks = new Hono<{ Bindings: Env }>();
+export const drinks = new Hono<AppEnv>();
 
 const SORTS: readonly DrinkSort[] = ["recent", "rating", "name"];
 const MAX_QUERY_LENGTH = 100;
@@ -77,6 +77,7 @@ drinks.get("/drinks", async (c) => {
 
   const brand = params.get("brand")?.trim();
   const { items, total } = await listDrinks(c.env.DB, {
+    viewerId: c.get("user")?.id ?? null,
     q,
     brand: brand ? normaliseBrand(brand) : undefined,
     category: params.get("category")?.trim() || undefined,
@@ -107,7 +108,8 @@ drinks.get("/drinks/facets", async (c) => {
 drinks.get("/drinks/:id", async (c) => {
   const id = c.req.param("id");
 
-  const detail = await getDrinkById(c.env.DB, id);
+  const viewerId = c.get("user")?.id ?? null;
+  const detail = await getDrinkById(c.env.DB, id, viewerId);
   if (!detail) {
     const body: ApiError = {
       error: "not_found",
@@ -120,14 +122,15 @@ drinks.get("/drinks/:id", async (c) => {
     c.env.DB,
     detail.drink.id,
     normaliseBrand(detail.drink.brand),
+    viewerId,
   );
 
   return c.json({
     drink: detail.drink,
     community: detail.community,
     siblings,
-    // Populated once accounts exist in Phase 3.
-    viewerRating: null,
-    inViewerCollection: false,
+    viewerRating: detail.viewerRating,
+    inViewerCollection: detail.inViewerCollection,
+    viewerEntry: detail.viewerEntry,
   });
 });

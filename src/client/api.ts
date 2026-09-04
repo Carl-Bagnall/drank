@@ -1,8 +1,12 @@
 import type {
   ApiError,
+  AuthResponse,
+  CollectionItem,
+  CollectionListResponse,
   DrinkDetailResponse,
   DrinkListResponse,
   Facets,
+  MeResponse,
 } from "../shared/types";
 
 /**
@@ -88,7 +92,7 @@ export interface DrinkQuery {
 }
 
 /** Builds the query string, omitting empty values so URLs stay readable. */
-function toSearchParams(query: DrinkQuery): string {
+function toSearchParams(query: Record<string, unknown>): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined && value !== null && value !== "") {
@@ -103,7 +107,10 @@ export function getDrinks(
   query: DrinkQuery = {},
   signal?: AbortSignal,
 ): Promise<DrinkListResponse> {
-  return apiFetch<DrinkListResponse>(`/drinks${toSearchParams(query)}`, { signal });
+  return apiFetch<DrinkListResponse>(
+    `/drinks${toSearchParams(query as Record<string, unknown>)}`,
+    { signal },
+  );
 }
 
 export function getDrink(
@@ -117,4 +124,96 @@ export function getDrink(
 
 export function getFacets(signal?: AbortSignal): Promise<Facets> {
   return apiFetch<Facets>("/drinks/facets", { signal });
+}
+
+// ---------------------------------------------------------------------------
+// Accounts
+// ---------------------------------------------------------------------------
+
+export function register(input: {
+  username: string;
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function login(input: {
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function logout(): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" });
+}
+
+export function getMe(signal?: AbortSignal): Promise<MeResponse> {
+  return apiFetch<MeResponse>("/users/me", { signal });
+}
+
+// ---------------------------------------------------------------------------
+// Collection
+// ---------------------------------------------------------------------------
+
+export interface CollectionQuery {
+  sort?: "recent" | "highest" | "lowest" | "name";
+  brand?: string;
+  category?: string;
+  country?: string;
+  favourites?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
+export function getCollection(
+  query: CollectionQuery = {},
+  signal?: AbortSignal,
+): Promise<CollectionListResponse> {
+  return apiFetch<CollectionListResponse>(
+    `/users/me/collection${toSearchParams(query as Record<string, unknown>)}`,
+    { signal },
+  );
+}
+
+export function getCollectionFacets(signal?: AbortSignal): Promise<Facets> {
+  return apiFetch<Facets>("/users/me/collection/facets", { signal });
+}
+
+export function getFavourites(
+  signal?: AbortSignal,
+): Promise<{ items: CollectionItem[] }> {
+  return apiFetch<{ items: CollectionItem[] }>("/users/me/favourites", { signal });
+}
+
+export function addToCollection(
+  drinkId: string,
+): Promise<{ drinkId: string; alreadyCollected: boolean }> {
+  return apiFetch("/users/me/collection", {
+    method: "POST",
+    body: JSON.stringify({ drinkId }),
+  });
+}
+
+export function removeFromCollection(drinkId: string): Promise<{ removed: boolean }> {
+  return apiFetch(`/users/me/collection/${encodeURIComponent(drinkId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function updateCollectionEntry(
+  drinkId: string,
+  changes: { notes?: string | null; isFavourite?: boolean },
+): Promise<unknown> {
+  return apiFetch(`/users/me/collection/${encodeURIComponent(drinkId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
 }

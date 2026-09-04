@@ -78,9 +78,12 @@ export interface DrinkSummary {
   inViewerCollection: boolean;
 }
 
-export interface CollectionEntry {
-  id: string;
-  drinkId: string;
+/**
+ * A drink in someone's collection: the drink itself, plus that person's own
+ * entry. The rating is joined from `ratings`, never stored on the entry, so
+ * owning a drink and scoring it stay separate.
+ */
+export interface CollectionItem extends DrinkSummary {
   addedAt: string;
   notes: string | null;
   isFavourite: boolean;
@@ -141,4 +144,25 @@ export interface DrinkDetailResponse {
   siblings: DrinkSummary[];
   viewerRating: number | null;
   inViewerCollection: boolean;
+  /** The viewer's own notes and favourite flag, or null if not collected. */
+  viewerEntry: { notes: string | null; isFavourite: boolean } | null;
+}
+
+/** Response shape of GET /api/users/me. */
+export interface MeResponse {
+  user: PublicUser;
+  stats: CollectionStats;
+}
+
+/** Response shape of GET /api/users/me/collection. */
+export interface CollectionListResponse {
+  items: CollectionItem[];
+  total: number;
+  nextCursor: string | null;
+  stats: CollectionStats;
+}
+
+/** Response shape of the register and login routes. */
+export interface AuthResponse {
+  user: PublicUser;
 }

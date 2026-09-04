@@ -10,7 +10,7 @@ import type { Drink, DrinkSummary, Facet, Facets } from "../../shared/types";
  * there is no stored aggregate to keep in sync.
  */
 
-/** Shape D1 returns: snake_case columns plus the joined rating aggregate. */
+/** Shape D1 returns: snake_case columns plus the joined aggregates. */
 interface DrinkRow {
   id: string;
   name: string;
@@ -34,6 +34,10 @@ interface DrinkRow {
   updated_at: string;
   rating_count: number;
   avg_score: number | null;
+  viewer_score: number | null;
+  in_collection: number;
+  entry_notes: string | null;
+  entry_favourite: number | null;
 }
 
 export type DrinkSort = "recent" | "rating" | "name";
@@ -47,6 +51,8 @@ export interface ListDrinksOptions {
   sort?: DrinkSort;
   limit?: number;
   offset?: number;
+  /** Signed-in user, or null. Drives viewerRating and inViewerCollection. */
+  viewerId?: string | null;
 }
 
 export const DEFAULT_LIMIT = 24;
@@ -70,9 +76,8 @@ function toSummary(row: DrinkRow): DrinkSummary {
       average: toCommunityAverage(row.avg_score),
       count: row.rating_count,
     },
-    // Populated once accounts exist in Phase 3.
-    viewerRating: null,
-    inViewerCollection: false,
+    viewerRating: row.viewer_score === null ? null : row.viewer_score / 2,
+    inViewerCollection: row.in_collection === 1,
   };
 }
 
@@ -101,12 +106,25 @@ function toDrink(row: DrinkRow): Drink {
   };
 }
 
+/**
+ * The viewer joins take the user id as a bind parameter. Binding null makes
+ * them match nothing, so a signed-out request runs the same SQL and simply
+ * gets no viewer data — no branching query builder.
+ *
+ * The two viewer parameters always come first in the bind order.
+ */
 const SELECT_WITH_RATINGS = `
   SELECT d.*,
-         COUNT(r.id) AS rating_count,
-         AVG(r.score) AS avg_score
+         COUNT(r.id)   AS rating_count,
+         AVG(r.score)  AS avg_score,
+         MAX(ur.score) AS viewer_score,
+         MAX(CASE WHEN ce.id IS NOT NULL THEN 1 ELSE 0 END) AS in_collection,
+         MAX(ce.notes)        AS entry_notes,
+         MAX(ce.is_favourite) AS entry_favourite
   FROM drinks d
-  LEFT JOIN ratings r ON r.drink_id = d.id
+  LEFT JOIN ratings r  ON r.drink_id  = d.id
+  LEFT JOIN ratings ur ON ur.drink_id = d.id AND ur.user_id = ?
+  LEFT JOIN collection_entries ce ON ce.drink_id = d.id AND ce.user_id = ?
 `;
 
 /**
@@ -123,6 +141,7 @@ export async function listDrinks(
 ): Promise<{ items: DrinkSummary[]; total: number }> {
   const limit = Math.min(Math.max(options.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
   const offset = Math.max(options.offset ?? 0, 0);
+  const viewerId = options.viewerId ?? null;
 
   const where: string[] = ["d.status = 'published'"];
   const params: unknown[] = [];
@@ -163,43 +182,43 @@ export async function listDrinks(
         ? "ORDER BY (avg_score IS NULL) ASC, avg_score DESC, d.name COLLATE NOCASE ASC"
         : "ORDER BY d.created_at DESC, d.name COLLATE NOCASE ASC";
 
-  const listStatement = db
-    .prepare(
-      `${SELECT_WITH_RATINGS} ${whereSql} GROUP BY d.id ${orderSql} LIMIT ? OFFSET ?`,
-    )
-    .bind(...params, limit, offset);
-
-  // Counted separately so the total is not affected by LIMIT.
-  const countStatement = db
-    .prepare(`SELECT COUNT(*) AS total FROM drinks d ${whereSql}`)
-    .bind(...params);
-
   const [listResult, countResult] = await db.batch<DrinkRow | { total: number }>([
-    listStatement,
-    countStatement,
+    db
+      .prepare(
+        `${SELECT_WITH_RATINGS} ${whereSql} GROUP BY d.id ${orderSql} LIMIT ? OFFSET ?`,
+      )
+      .bind(viewerId, viewerId, ...params, limit, offset),
+    // Counted separately so the total is not affected by LIMIT, and without
+    // the joins, which cannot change how many drinks match.
+    db.prepare(`SELECT COUNT(*) AS total FROM drinks d ${whereSql}`).bind(...params),
   ]);
 
-  const items = (listResult.results as DrinkRow[]).map(toSummary);
-  const total = (countResult.results as { total: number }[])[0]?.total ?? 0;
-
-  return { items, total };
+  return {
+    items: (listResult.results as DrinkRow[]).map(toSummary),
+    total: (countResult.results as { total: number }[])[0]?.total ?? 0,
+  };
 }
 
 export interface DrinkDetail {
   drink: Drink;
   community: { average: number | null; count: number };
+  viewerRating: number | null;
+  inViewerCollection: boolean;
+  /** The viewer's own collection entry, or null if they have not collected it. */
+  viewerEntry: { notes: string | null; isFavourite: boolean } | null;
 }
 
 /** A single published drink with its community rating, or null if not found. */
 export async function getDrinkById(
   db: D1Database,
   id: string,
+  viewerId: string | null = null,
 ): Promise<DrinkDetail | null> {
   const row = await db
     .prepare(
       `${SELECT_WITH_RATINGS} WHERE d.id = ? AND d.status = 'published' GROUP BY d.id`,
     )
-    .bind(id)
+    .bind(viewerId, viewerId, id)
     .first<DrinkRow>();
 
   if (!row) return null;
@@ -210,6 +229,12 @@ export async function getDrinkById(
       average: toCommunityAverage(row.avg_score),
       count: row.rating_count,
     },
+    viewerRating: row.viewer_score === null ? null : row.viewer_score / 2,
+    inViewerCollection: row.in_collection === 1,
+    viewerEntry:
+      row.in_collection === 1
+        ? { notes: row.entry_notes, isFavourite: row.entry_favourite === 1 }
+        : null,
   };
 }
 
@@ -221,6 +246,7 @@ export async function getBrandSiblings(
   db: D1Database,
   drinkId: string,
   brandNormalised: string,
+  viewerId: string | null = null,
   limit = 8,
 ): Promise<DrinkSummary[]> {
   const { results } = await db
@@ -231,7 +257,7 @@ export async function getBrandSiblings(
        ORDER BY d.name COLLATE NOCASE ASC
        LIMIT ?`,
     )
-    .bind(brandNormalised, drinkId, limit)
+    .bind(viewerId, viewerId, brandNormalised, drinkId, limit)
     .all<DrinkRow>();
 
   return results.map(toSummary);

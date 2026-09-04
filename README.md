@@ -4,7 +4,7 @@ A community-driven catalogue and collection app for soft drinks — "Discogs for
 
 Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
 
-> **Status: Phase 2 (catalogue).** Browse, search, filter and view drinks, with community ratings. Accounts, collections and rating submission are not built yet — see [Roadmap](#roadmap).
+> **Status: Phase 3 (accounts and collections).** Create an account, browse and search the catalogue, and build a private collection with notes and favourites. Submitting your own ratings is not built yet — see [Roadmap](#roadmap).
 
 ---
 
@@ -124,7 +124,17 @@ test/             Vitest suites, run inside workerd against real D1
 | `GET /api/health` | Liveness, including a real D1 query |
 | `GET /api/drinks` | List, search and filter. Params: `q`, `brand`, `category`, `country`, `sort` (`recent`/`rating`/`name`), `limit`, `cursor` |
 | `GET /api/drinks/facets` | Filter options with counts, derived from the catalogue |
-| `GET /api/drinks/:id` | One drink, its community rating and its brand siblings |
+| `GET /api/drinks/:id` | One drink, its community rating, brand siblings, and the viewer's own entry |
+| `POST /api/auth/register` | Create an account and sign in |
+| `POST /api/auth/login` | Sign in |
+| `POST /api/auth/logout` | Revoke the current session |
+| `GET /api/users/me` | The signed-in user and their collection stats |
+| `GET /api/users/me/collection` | Their collection: sorted, filtered, paginated, plus stats |
+| `GET /api/users/me/collection/facets` | Filter options drawn from what they own |
+| `GET /api/users/me/favourites` | Favourited drinks, for the profile page |
+| `POST /api/users/me/collection` | Add a drink (`{ drinkId }`) |
+| `PATCH /api/users/me/collection/:drinkId` | Update notes and favourite status |
+| `DELETE /api/users/me/collection/:drinkId` | Remove a drink |
 
 **There is no separate `/api/search`.** The brief suggests one, but searching differs from listing only by a `WHERE` clause — a second route would duplicate the sorting, pagination and rating-aggregation logic for no benefit. Search is `GET /api/drinks?q=…`.
 
@@ -132,9 +142,22 @@ test/             Vitest suites, run inside workerd against real D1
 
 SQL lives in `src/worker/db/`, not in route handlers, so routes stay about HTTP and queries can be tested directly.
 
+### Authentication
+
+Email and password, with server-side sessions. No social login — the brief asks not to add it without a compelling reason, and it would mean a third-party dependency for something Cloudflare and D1 already cover.
+
+- **Passwords are hashed with PBKDF2-HMAC-SHA-256** via WebCrypto. bcrypt, scrypt and Argon2 are stronger, but none run in workerd without shipping WASM; PBKDF2 is the strongest primitive the runtime offers natively. The algorithm, iteration count and salt are stored *with* each hash, so the cost can be raised later without invalidating existing passwords.
+- **The iteration count is 210,000, below the OWASP-recommended 600,000.** 600k exceeds the 10ms CPU budget of a free-tier Worker request. Raise it when the app moves to a paid plan; old hashes keep verifying with their own recorded count.
+- **Sessions are rows in D1, not stateless tokens**, so logout revokes access immediately rather than waiting for an expiry.
+- **The database stores only a SHA-256 hash of the session token.** The token itself exists solely in the user's cookie, so a database dump cannot be replayed as live sessions.
+- **The cookie is `httpOnly`, `SameSite=Lax` and `Secure`** (except on localhost, where browsers reject `Secure` cookies over plain HTTP). `SameSite=Lax` is what stops a cross-site form submission acting as the user.
+- **Login gives the same answer for a wrong password and an unknown email**, and verifies against a dummy hash when no user matches, so the form cannot be used to discover which addresses have accounts.
+
+**Not yet done: rate limiting.** The brief lists it, and login is the obvious place for it. A weak hand-rolled counter would give false confidence, so the intended answer is Cloudflare's own rate-limiting binding, configured in `wrangler.jsonc` at deployment. Tracked for Phase 7.
+
 ### Database
 
-Four tables: `users`, `drinks`, `collection_entries`, `ratings`.
+Five tables: `users`, `drinks`, `collection_entries`, `ratings`, `sessions`.
 
 - **Only `name` and `brand` are required on a drink.** The catalogue must accept incomplete, user-contributed products.
 - **Ratings are stored as integer half-points, 0–20**, representing 0.0–10.0. Integers make the range check trivial and avoid floating-point comparison bugs. All conversion lives in `src/shared/rating.ts`.
@@ -184,8 +207,8 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | --- | --- | --- |
 | 1 | Foundation: tooling, shell, routing, schema, seed, tests | **Done** |
 | 2 | Catalogue: drink API, cards, detail page, search, discovery | **Done** |
-| 3 | Accounts and collections | Next |
-| 4 | Ratings UI: personal and community | |
+| 3 | Accounts and collections | **Done** |
+| 4 | Ratings UI: personal and community | Next |
 | 5 | Open Food Facts lookup and barcode scanning | |
 | 6 | Polish: mobile UX, accessibility, performance | |
 | 7 | Production deployment and GitHub workflows | |
