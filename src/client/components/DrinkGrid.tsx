@@ -15,9 +15,17 @@ export function DrinkGrid({
   label: string;
 }) {
   return (
-    <ul aria-label={label} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    // `auto-rows-fr` gives every row the same height, so cards line up across
+    // the whole grid rather than only within a row. Combined with `h-full` on
+    // the card itself, that fixes the ragged bottom edge caused by names
+    // wrapping to two lines and flavour being optional — without hard-coding
+    // a pixel height that would break when the user scales their text.
+    <ul
+      aria-label={label}
+      className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3"
+    >
       {drinks.map((drink) => (
-        <li key={drink.id}>
+        <li key={drink.id} className="h-full">
           <DrinkCard drink={drink} />
         </li>
       ))}
