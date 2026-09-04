@@ -30,9 +30,7 @@ export function Home() {
         setState({
           kind: "error",
           message:
-            err instanceof Error
-              ? err.message
-              : "Could not reach the Drank API.",
+            err instanceof Error ? err.message : "Could not reach the Drank API.",
         });
       });
 
@@ -43,18 +41,15 @@ export function Home() {
 
   return (
     <div>
-      <section className="rounded-card bg-surface px-5 py-8 text-center shadow-card">
+      <section className="sticker-lg bg-fizz px-5 py-8 text-center">
         <Logo size="lg" />
-        <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-ink-muted">
+        <p className="mx-auto mt-4 max-w-[16rem] text-sm font-medium leading-relaxed text-ink">
           Collect, rate and discover soft drinks. Think Discogs, but fizzy.
         </p>
       </section>
 
-      <section className="mt-6" aria-labelledby="status-heading">
-        <h2
-          id="status-heading"
-          className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint"
-        >
+      <section className="mt-7" aria-labelledby="status-heading">
+        <h2 id="status-heading" className="eyebrow px-1">
           Foundation status
         </h2>
 
@@ -69,19 +64,24 @@ export function Home() {
         )}
 
         {state.kind === "ready" && (
-          <dl className="mt-2 divide-y divide-hairline overflow-hidden rounded-card bg-surface shadow-card">
-            <Row label="API" value={state.health.status} />
-            <Row label="Database" value={state.health.database} />
+          <dl className="sticker mt-3 divide-y-[2.5px] divide-ink overflow-hidden">
+            <Row label="API" value={state.health.status} tone="bg-lime" />
+            <Row label="Database" value={state.health.database} tone="bg-lime" />
             <Row
               label="Drinks in catalogue"
               value={String(state.health.publishedDrinks)}
+              tone="bg-citrus"
             />
-            <Row label="Query time" value={`${state.health.latencyMs} ms`} />
+            <Row
+              label="Query time"
+              value={`${state.health.latencyMs} ms`}
+              tone="bg-berry"
+            />
           </dl>
         )}
       </section>
 
-      <p className="mt-6 px-1 text-xs leading-relaxed text-ink-faint">
+      <p className="mt-6 px-1 text-xs leading-relaxed text-ink-muted">
         Phase 1 is the foundation only. The catalogue, search, collections and
         ratings arrive in later phases.
       </p>
@@ -89,11 +89,23 @@ export function Home() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
   return (
-    <div className="flex items-center justify-between px-5 py-3.5">
-      <dt className="text-sm text-ink-muted">{label}</dt>
-      <dd className="text-sm font-semibold text-ink">{value}</dd>
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <dt className="text-sm font-medium text-ink-muted">{label}</dt>
+      <dd
+        className={`sticker-sm shrink-0 px-2.5 py-1 font-display text-sm text-ink ${tone}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

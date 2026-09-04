@@ -1,79 +1,92 @@
 @import "tailwindcss";
 
+/* Self-hosted so there is no external request and no render-blocking round
+   trip. Archivo Black carries the wordmark and headings; Space Grotesk is the
+   UI face and has enough character to avoid looking like default Helvetica. */
+@import "@fontsource/archivo-black/400.css";
+@import "@fontsource-variable/space-grotesk";
+
 /* ---------------------------------------------------------------------------
-   Drank design tokens
+   Drank design tokens — "collectible sticker"
    ---------------------------------------------------------------------------
-   Tailwind v4 is configured in CSS rather than a JS config file. Everything
-   declared in @theme becomes a utility (bg-cherry, text-ink, rounded-card...)
-   and a CSS custom property.
+   The look is built from four moves, applied consistently:
+     1. A heavy ink outline on every raised surface
+     2. A hard offset shadow with zero blur (a sticker lifting off the page)
+     3. Flat, saturated colour blocks — no gradients anywhere
+     4. Heavy display type, tight tracking
 
-   Colour pairs are fixed deliberately, because rating and status badges must
-   not rely on colour alone and must stay legible:
-     - white text on --color-cherry   ~4.6:1  (AA normal text)
-     - ink text on --color-citrus    ~12.1:1  (AAA)
-     - ink text on --color-cream     ~17.0:1  (AAA)
-     - ink-muted on --color-cream     ~5.0:1  (AA normal text)
-
-   Light theme only for now. A dark theme is a single additional block of
-   token overrides when we want it — no component changes needed.
+   Colour rule: ink text on every accent fill. Never white on an accent —
+   white on cherry is only 3.5:1 and fails AA, whereas ink on every accent
+   below clears 5:1:
+     ink on cherry ~5.4:1   ink on berry  ~7.4:1
+     ink on fizz   ~8.9:1   ink on citrus ~12.8:1
+     ink on lime  ~13.8:1   ink on paper  ~17.5:1
 --------------------------------------------------------------------------- */
 @theme {
   /* Surfaces */
-  --color-cream: #fdf9f3;
+  --color-paper: #fbf5e9;
   --color-surface: #ffffff;
-  --color-surface-sunken: #f4eee4;
+  --color-sunken: #f0e7d6;
 
-  /* Text */
-  --color-ink: #17140f;
-  --color-ink-muted: #6b6257;
-  --color-ink-faint: #a2988a;
+  /* Ink — text, and every outline in the app */
+  --color-ink: #141210;
+  --color-ink-muted: #5d564c;
 
-  /* Brand */
-  --color-cherry: #e0245e;
-  --color-cherry-dark: #b3143f;
-  --color-citrus: #ffc93c;
-  --color-fizz: #1fb6a8;
+  /* Flavour accents. These double as category colours later, which is why
+     there are six rather than one brand colour. */
+  --color-cherry: #ff3b5c;
+  --color-citrus: #ffd029;
+  --color-lime: #b8f03c;
+  --color-berry: #c08bff;
+  --color-fizz: #16c7c0;
+  --color-tang: #ff7a29;
 
-  /* Lines */
-  --color-hairline: #e8e0d3;
-
-  /* Radii — generous, to read as "collectible" rather than "enterprise" */
-  --radius-card: 1rem;
+  /* Chunky, but not pill-shaped except where intended */
+  --radius-card: 14px;
+  --radius-sticker: 10px;
   --radius-pill: 999px;
 
-  /* Shadows — soft and warm, never grey */
-  --shadow-card: 0 1px 2px rgb(23 20 15 / 0.04), 0 4px 12px rgb(23 20 15 / 0.06);
-  --shadow-raised: 0 2px 4px rgb(23 20 15 / 0.06), 0 12px 24px rgb(23 20 15 / 0.1);
+  /* Hard offset shadows — no blur, ever */
+  --shadow-sticker: 3px 3px 0 var(--color-ink);
+  --shadow-sticker-lg: 5px 5px 0 var(--color-ink);
+  --shadow-sticker-sm: 2px 2px 0 var(--color-ink);
 
-  /* Type */
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  --font-display:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Archivo Black", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* ---------------------------------------------------------------------------
-   Base
---------------------------------------------------------------------------- */
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    background-color: var(--color-cream);
+    background-color: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    /* Stops iOS rubber-banding revealing a white gap under the bottom nav. */
     overscroll-behavior-y: none;
+
+    /* Faint dot grid, as in the references. Sits behind everything and is
+       purely decorative. */
+    background-image: radial-gradient(
+      var(--color-sunken) 1.5px,
+      transparent 1.5px
+    );
+    background-size: 18px 18px;
   }
 
-  /* A single visible focus treatment, used everywhere. Never remove it —
-     keyboard users have no other way to track position. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Thick offset ring rather than a hairline — a thin outline disappears
+     against heavy black borders. */
   :focus-visible {
-    outline: 2px solid var(--color-cherry);
-    outline-offset: 2px;
+    outline: 3px solid var(--color-cherry);
+    outline-offset: 3px;
     border-radius: 4px;
   }
 
@@ -89,8 +102,80 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Component classes
+   ---------------------------------------------------------------------------
+   The outline-plus-hard-shadow combination repeats on every raised surface.
+   Defining it once here keeps the markup readable and stops the treatment
+   drifting between screens.
+--------------------------------------------------------------------------- */
+@layer components {
+  .sticker {
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-sticker);
+    background-color: var(--color-surface);
+  }
+
+  .sticker-lg {
+    border: 3px solid var(--color-ink);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-sticker-lg);
+    background-color: var(--color-surface);
+  }
+
+  .sticker-sm {
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-sticker);
+    box-shadow: var(--shadow-sticker-sm);
+  }
+
+  /* Buttons physically press into the page: the shadow shrinks and the
+     element moves the same distance, so the shape stays put. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.875rem;
+    padding-inline: 1.25rem;
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-sticker);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--color-ink);
+  }
+
+  .btn-cherry {
+    background-color: var(--color-cherry);
+  }
+  .btn-citrus {
+    background-color: var(--color-citrus);
+  }
+
+  /* A small uppercase label used above sections. */
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+  }
+}
+
 @layer utilities {
-  /* Keeps content clear of the iOS home indicator and notch. */
   .pb-safe {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }

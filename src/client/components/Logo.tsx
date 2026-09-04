@@ -1,35 +1,49 @@
 interface LogoProps {
-  /** Rendered as a heading on the home screen, inline elsewhere. */
+  /** `lg` is the hero treatment on Home; `sm` sits in the header. */
   size?: "sm" | "lg";
 }
 
 /**
- * The Drank wordmark.
+ * The Drank wordmark, built as a sticker: a flat cherry block, a heavy ink
+ * outline and a hard offset shadow, with bubbles fizzing up off the "k".
  *
- * Lowercase, heavy, tightly tracked, with the dot of the "i"-like bubble
- * replaced by a cherry-coloured fizz dot after the word. Deliberately built
- * from type rather than an image so it stays crisp at every size and works
- * as a header, an avatar and a favicon.
+ * The bubbles ascend diagonally and shrink as they rise. Stacked vertically
+ * they read as a colon, which makes the wordmark look like "drank:".
  *
- * This uses the system font stack on purpose: picking a real display face is
- * a Phase 6 branding decision, and loading a webfont now would cost a render
- * -blocking request for something we expect to change.
+ * Ink on cherry is ~5.4:1, so the wordmark clears AA. White on cherry would
+ * only reach ~3.5:1, which is why text is never light on an accent.
  */
 export function Logo({ size = "sm" }: LogoProps) {
-  const text = size === "lg" ? "text-4xl" : "text-xl";
-  const dot = size === "lg" ? "size-2.5" : "size-1.5";
+  const isLarge = size === "lg";
 
   return (
-    <span className="inline-flex items-baseline gap-1">
+    <span
+      className={[
+        "inline-flex items-end gap-1.5 border-ink bg-cherry",
+        isLarge
+          ? "rounded-[16px] border-[3px] px-5 pb-2.5 pt-3 shadow-[var(--shadow-sticker-lg)]"
+          : "rounded-[11px] border-[2.5px] px-3 pb-1.5 pt-2 shadow-[var(--shadow-sticker-sm)]",
+      ].join(" ")}
+    >
       <span
-        className={`${text} font-display font-extrabold tracking-tight text-ink lowercase`}
+        className={[
+          "font-display lowercase leading-none tracking-[-0.04em] text-ink",
+          isLarge ? "text-[2.75rem]" : "text-lg",
+        ].join(" ")}
       >
         drank
       </span>
-      <span
+
+      {/* Fizz. Decorative, so hidden from assistive tech. */}
+      <svg
+        viewBox="0 0 16 26"
         aria-hidden="true"
-        className={`${dot} shrink-0 rounded-full bg-cherry`}
-      />
+        className={isLarge ? "mb-1 h-11 w-6" : "mb-0.5 h-[1.15rem] w-2.5"}
+      >
+        <circle cx="4.5" cy="21" r="3.4" fill="currentColor" className="text-ink" />
+        <circle cx="9.5" cy="12" r="2.4" fill="currentColor" className="text-ink" />
+        <circle cx="13" cy="4.5" r="1.6" fill="currentColor" className="text-ink" />
+      </svg>
     </span>
   );
 }

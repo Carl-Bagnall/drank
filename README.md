@@ -144,7 +144,22 @@ Four tables: `users`, `drinks`, `collection_entries`, `ratings`.
 
 Tokens live in `src/client/styles/index.css` using Tailwind v4's CSS-first `@theme` configuration — there is no `tailwind.config.js`.
 
-Colour pairings are fixed for contrast: white on `--color-cherry` (~4.6:1), ink on `--color-citrus` (~12.1:1), ink on `--color-cream` (~17:1). Status and rating are never communicated by colour alone. The theme is light-only for now; a dark theme is one additional block of token overrides and needs no component changes.
+The style is **collectible sticker** — neo-brutalist. It is built from four moves, applied consistently:
+
+1. A heavy ink outline (2–3px) on every raised surface
+2. A hard offset shadow with **zero blur**, so elements read as stickers lifting off the page
+3. Flat, saturated colour blocks — no gradients anywhere
+4. Heavy display type with tight tracking
+
+The repeated outline-plus-shadow treatment is defined once as `.sticker`, `.sticker-lg`, `.sticker-sm` and `.btn` in `@layer components`, rather than being retyped as utility strings on every element.
+
+**The colour rule is: ink text on every accent fill, never white.** White on cherry is only ~3.5:1 and fails AA, whereas ink clears 5:1 on all six accents (cherry ~5.4, berry ~7.4, fizz ~8.9, citrus ~12.8, lime ~13.8, paper ~17.5). There are six accents rather than one brand colour because they double as flavour and category coding later.
+
+Status and navigation are never signalled by colour alone: the active tab changes shape (a filled, outlined pill), the emphasised Scan action gets a ring, and the error state has a solid header bar and an explicit heading.
+
+Fonts are **self-hosted via `@fontsource`** — Archivo Black for display, Space Grotesk for UI — so there is no external request, no render-blocking round trip and no third-party privacy consideration.
+
+The theme is light-only for now; a dark theme is one additional block of token overrides and needs no component changes.
 
 ---
 
