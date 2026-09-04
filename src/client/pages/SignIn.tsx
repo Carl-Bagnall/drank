@@ -21,6 +21,8 @@ export function SignIn() {
   const [mode, setMode] = useState<Mode>("signin");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  // Sign-in accepts either; sign-up needs a real email address.
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +43,7 @@ export function SignIn() {
       if (mode === "signup") {
         await signUp(username, email, password);
       } else {
-        await signIn(email, password);
+        await signIn(identifier, password);
       }
       const to = (location.state as { from?: string } | null)?.from ?? "/collection";
       navigate(to, { replace: true });
@@ -84,28 +86,42 @@ export function SignIn() {
       </div>
 
       <form onSubmit={handleSubmit} className="sticker mt-4 px-4 py-5">
-        {isSignUp && (
+        {isSignUp ? (
+          <>
+            <Field
+              id="username"
+              label="Username"
+              value={username}
+              onChange={setUsername}
+              autoComplete="username"
+              hint="Letters, numbers and underscores. 2–32 characters."
+              required
+            />
+            <Field
+              id="email"
+              label="Email"
+              type="email"
+              inputMode="email"
+              value={email}
+              onChange={setEmail}
+              autoComplete="email"
+              required
+            />
+          </>
+        ) : (
+          /* Deliberately type="text", not type="email": the browser's own
+             email validation would reject a bare username. `autocomplete
+             ="username"` is the correct token for a login identifier field
+             even when it holds an email address. */
           <Field
-            id="username"
-            label="Username"
-            value={username}
-            onChange={setUsername}
+            id="identifier"
+            label="Email or username"
+            value={identifier}
+            onChange={setIdentifier}
             autoComplete="username"
-            hint="Letters, numbers and underscores. 2–32 characters."
             required
           />
         )}
-
-        <Field
-          id="email"
-          label="Email"
-          type="email"
-          inputMode="email"
-          value={email}
-          onChange={setEmail}
-          autoComplete="email"
-          required
-        />
 
         <Field
           id="password"

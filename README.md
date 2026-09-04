@@ -126,7 +126,7 @@ test/             Vitest suites, run inside workerd against real D1
 | `GET /api/drinks/facets` | Filter options with counts, derived from the catalogue |
 | `GET /api/drinks/:id` | One drink, its community rating, brand siblings, and the viewer's own entry |
 | `POST /api/auth/register` | Create an account and sign in |
-| `POST /api/auth/login` | Sign in |
+| `POST /api/auth/login` | Sign in with `identifier` (email **or** username) and `password` |
 | `POST /api/auth/logout` | Revoke the current session |
 | `GET /api/users/me` | The signed-in user and their collection stats |
 | `GET /api/users/me/collection` | Their collection: sorted, filtered, paginated, plus stats |
@@ -151,7 +151,9 @@ Email and password, with server-side sessions. No social login — the brief ask
 - **Sessions are rows in D1, not stateless tokens**, so logout revokes access immediately rather than waiting for an expiry.
 - **The database stores only a SHA-256 hash of the session token.** The token itself exists solely in the user's cookie, so a database dump cannot be replayed as live sessions.
 - **The cookie is `httpOnly`, `SameSite=Lax` and `Secure`** (except on localhost, where browsers reject `Secure` cookies over plain HTTP). `SameSite=Lax` is what stops a cross-site form submission acting as the user.
-- **Login gives the same answer for a wrong password and an unknown email**, and verifies against a dummy hash when no user matches, so the form cannot be used to discover which addresses have accounts.
+- **Sign in accepts either an email address or a username.** Usernames are restricted to letters, digits and underscores, so they can never contain `@` — the two identifier spaces are disjoint by construction and one value can safely be checked against both columns. Both are `COLLATE NOCASE`, so matching is case-insensitive.
+- **Login gives the same answer for a wrong password, an unknown email and an unknown username**, and verifies against a dummy hash when no user matches, so the form cannot be used to discover which addresses or usernames have accounts. The message names neither field.
+- **Usernames are therefore login credentials.** That is a deliberate trade-off, and the same one GitHub and Reddit make; worth revisiting if public profiles ever expose usernames.
 
 **Not yet done: rate limiting.** The brief lists it, and login is the obvious place for it. A weak hand-rolled counter would give false confidence, so the intended answer is Cloudflare's own rate-limiting binding, configured in `wrangler.jsonc` at deployment. Tracked for Phase 7.
 

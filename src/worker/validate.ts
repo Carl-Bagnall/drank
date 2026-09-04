@@ -117,6 +117,26 @@ export function validateEmail(body: Record<string, unknown>): string {
 }
 
 /**
+ * The login identifier: either an email address or a username.
+ *
+ * Deliberately not validated as one or the other. Usernames cannot contain
+ * `@` (see USERNAME_PATTERN), so the two spaces cannot overlap and the query
+ * can simply check both columns. Rejecting a malformed email here would also
+ * leak that the input was being treated as an email at all.
+ */
+export function validateIdentifier(body: Record<string, unknown>): string {
+  const value = body["identifier"];
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new ValidationError("Enter your email address or username.");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 254) {
+    throw new ValidationError("That email address or username is too long.");
+  }
+  return trimmed;
+}
+
+/**
  * Length is the only rule. Composition requirements (a digit, a symbol) push
  * people towards predictable substitutions and are no longer recommended;
  * NIST guidance is to check length and screen against breached passwords.

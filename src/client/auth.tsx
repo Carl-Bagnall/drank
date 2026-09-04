@@ -25,7 +25,7 @@ interface AuthState {
   stats: CollectionStats | null;
   /** True until the initial "who am I" request settles. */
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (identifier: string, password: string) => Promise<void>;
   signUp: (username: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Re-reads the user and stats, e.g. after the collection changes. */
@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       stats,
       loading,
-      signIn: async (email, password) => {
-        const { user: signedIn } = await api.login({ email, password });
+      signIn: async (identifier, password) => {
+        const { user: signedIn } = await api.login({ identifier, password });
         setUser(signedIn);
         await load();
       },

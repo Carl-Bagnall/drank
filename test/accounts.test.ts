@@ -163,40 +163,90 @@ describe("registration", () => {
 });
 
 describe("login and logout", () => {
-  it("signs in with correct credentials", async () => {
-    await register();
-
-    const response = await SELF.fetch(`${BASE}/auth/login`, {
+  const attemptLogin = (identifier: string, password = "correct horse battery") =>
+    SELF.fetch(`${BASE}/auth/login`, {
       method: "POST",
       headers: JSON_HEADERS,
-      body: JSON.stringify({
-        email: "carl@example.com",
-        password: "correct horse battery",
-      }),
+      body: JSON.stringify({ identifier, password }),
     });
+
+  it("signs in with an email address", async () => {
+    await register();
+    const response = await attemptLogin("carl@example.com");
 
     expect(response.status).toBe(200);
     expect(sessionCookie(response)).toContain("drank_session=");
   });
 
-  it("gives the same answer for a wrong password and an unknown email", async () => {
+  it("signs in with a username", async () => {
+    await register();
+    const response = await attemptLogin("carl");
+
+    expect(response.status).toBe(200);
+    expect(sessionCookie(response)).toContain("drank_session=");
+    expect((await response.json<AuthResponse>()).user.username).toBe("carl");
+  });
+
+  it("matches either identifier case-insensitively", async () => {
     await register();
 
-    const wrongPassword = await SELF.fetch(`${BASE}/auth/login`, {
+    for (const identifier of ["CARL", "Carl@Example.COM", "cArL"]) {
+      const response = await attemptLogin(identifier);
+      expect(response.status, identifier).toBe(200);
+    }
+  });
+
+  it("cannot confuse a username for someone else's email", async () => {
+    // Usernames cannot contain "@", so the two identifier spaces are
+    // disjoint by construction — this guards that rule at the API.
+    const response = await SELF.fetch(`${BASE}/auth/register`, {
       method: "POST",
       headers: JSON_HEADERS,
-      body: JSON.stringify({ email: "carl@example.com", password: "wrong password" }),
+      body: JSON.stringify({
+        username: "carl@example.com",
+        email: "someone@example.com",
+        password: "correct horse battery",
+      }),
     });
-    const unknownEmail = await SELF.fetch(`${BASE}/auth/login`, {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify({ email: "nobody@example.com", password: "wrong password" }),
-    });
+    expect(response.status).toBe(400);
+  });
+
+  it("gives the same answer for a wrong password, unknown email and unknown username", async () => {
+    await register();
+
+    const wrongPassword = await attemptLogin("carl@example.com", "wrong password");
+    const unknownEmail = await attemptLogin("nobody@example.com", "wrong password");
+    const unknownUsername = await attemptLogin("nobody", "wrong password");
 
     expect(wrongPassword.status).toBe(401);
     expect(unknownEmail.status).toBe(401);
-    // Identical, so the form cannot be used to discover which emails exist.
-    expect(await wrongPassword.json()).toEqual(await unknownEmail.json());
+    expect(unknownUsername.status).toBe(401);
+
+    // Identical, so the form cannot be used to discover which emails or
+    // usernames have accounts.
+    const bodies = await Promise.all([
+      wrongPassword.json(),
+      unknownEmail.json(),
+      unknownUsername.json(),
+    ]);
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(bodies[2]).toEqual(bodies[0]);
+    // And the message must not name which field was wrong.
+    expect(JSON.stringify(bodies[0]).toLowerCase()).not.toContain("email");
+    expect(JSON.stringify(bodies[0]).toLowerCase()).not.toContain("username");
+  });
+
+  it("rejects a missing or empty identifier", async () => {
+    await register();
+
+    for (const body of ['{"password":"correct horse battery"}', '{"identifier":"  ","password":"correct horse battery"}']) {
+      const response = await SELF.fetch(`${BASE}/auth/login`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body,
+      });
+      expect(response.status, body).toBe(400);
+    }
   });
 
   it("logout revokes the session immediately", async () => {

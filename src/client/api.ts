@@ -142,7 +142,8 @@ export function register(input: {
 }
 
 export function login(input: {
-  email: string;
+  /** Email address or username. */
+  identifier: string;
   password: string;
 }): Promise<AuthResponse> {
   return apiFetch<AuthResponse>("/auth/login", {

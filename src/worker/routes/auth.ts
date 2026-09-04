@@ -12,6 +12,7 @@ import {
 import {
   readJsonObject,
   validateEmail,
+  validateIdentifier,
   validatePassword,
   validateUsername,
 } from "../validate";
@@ -19,18 +20,18 @@ import {
 export const auth = new Hono<AppEnv>();
 
 /**
- * Deliberately identical for "no such email" and "wrong password".
+ * Deliberately identical for "no such account" and "wrong password".
  * Distinguishing them turns the login form into a way to discover which
- * email addresses have accounts.
+ * email addresses and usernames have accounts.
  */
 const INVALID_CREDENTIALS: ApiError = {
   error: "invalid_credentials",
-  message: "That email or password is not right.",
+  message: "Those details are not right.",
 };
 
 /**
  * A hash of a value nobody can supply. Verified against when no user matches,
- * so a request for an unknown email costs the same time as a real one and
+ * so a request for an unknown account costs the same time as a real one and
  * cannot be distinguished by how quickly it fails.
  */
 const DUMMY_HASH =
@@ -109,15 +110,28 @@ auth.post("/auth/register", async (c) => {
   return c.json({ user: toPublicUser(row!) }, 201);
 });
 
+/**
+ * Sign in with either an email address or a username.
+ *
+ * One bind value is checked against both columns. That is unambiguous because
+ * usernames are restricted to letters, digits and underscores, so a value
+ * containing `@` can only ever be an email and a value without one can only
+ * ever be a username — the two spaces cannot collide.
+ *
+ * Both columns are `COLLATE NOCASE` and uniquely indexed, so the match is
+ * case-insensitive without any lowering here.
+ */
 auth.post("/auth/login", async (c) => {
   const body = await readJsonObject(c.req.raw);
-  const email = validateEmail(body);
+  const identifier = validateIdentifier(body);
   const password = validatePassword(body);
 
   const row = await c.env.DB.prepare(
-    "SELECT id, username, display_name, created_at, password_hash FROM users WHERE email = ?",
+    `SELECT id, username, display_name, created_at, password_hash
+     FROM users
+     WHERE email = ? OR username = ?`,
   )
-    .bind(email)
+    .bind(identifier, identifier)
     .first<UserRow & { password_hash: string }>();
 
   const matches = await verifyPassword(password, row?.password_hash ?? DUMMY_HASH);
