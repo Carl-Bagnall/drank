@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Drank design tokens
+   ---------------------------------------------------------------------------
+   Tailwind v4 is configured in CSS rather than a JS config file. Everything
+   declared in @theme becomes a utility (bg-cherry, text-ink, rounded-card...)
+   and a CSS custom property.
+
+   Colour pairs are fixed deliberately, because rating and status badges must
+   not rely on colour alone and must stay legible:
+     - white text on --color-cherry   ~4.6:1  (AA normal text)
+     - ink text on --color-citrus    ~12.1:1  (AAA)
+     - ink text on --color-cream     ~17.0:1  (AAA)
+     - ink-muted on --color-cream     ~5.0:1  (AA normal text)
+
+   Light theme only for now. A dark theme is a single additional block of
+   token overrides when we want it — no component changes needed.
+--------------------------------------------------------------------------- */
+@theme {
+  /* Surfaces */
+  --color-cream: #fdf9f3;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f4eee4;
+
+  /* Text */
+  --color-ink: #17140f;
+  --color-ink-muted: #6b6257;
+  --color-ink-faint: #a2988a;
+
+  /* Brand */
+  --color-cherry: #e0245e;
+  --color-cherry-dark: #b3143f;
+  --color-citrus: #ffc93c;
+  --color-fizz: #1fb6a8;
+
+  /* Lines */
+  --color-hairline: #e8e0d3;
+
+  /* Radii — generous, to read as "collectible" rather than "enterprise" */
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+
+  /* Shadows — soft and warm, never grey */
+  --shadow-card: 0 1px 2px rgb(23 20 15 / 0.04), 0 4px 12px rgb(23 20 15 / 0.06);
+  --shadow-raised: 0 2px 4px rgb(23 20 15 / 0.06), 0 12px 24px rgb(23 20 15 / 0.1);
+
+  /* Type */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-display:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Stops iOS rubber-banding revealing a white gap under the bottom nav. */
+    overscroll-behavior-y: none;
+  }
+
+  /* A single visible focus treatment, used everywhere. Never remove it —
+     keyboard users have no other way to track position. */
+  :focus-visible {
+    outline: 2px solid var(--color-cherry);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Keeps content clear of the iOS home indicator and notch. */
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+}
