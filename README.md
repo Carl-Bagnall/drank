@@ -42,7 +42,7 @@ npx wrangler d1 create drank
 
 Copy the `database_id` it prints into `d1_databases[0].database_id` in `wrangler.jsonc`.
 
-> The committed `database_id` is a placeholder. Local commands ignore it; any `--remote` command needs the real value.
+> **Changing `database_id` resets your local database.** Wrangler keys the local SQLite file off that id, so pointing the binding at a different database gives you a brand-new empty one — the old data is still on disk under the previous id, but nothing reads it. Re-run steps 4 and 5 after any change to it. The symptom is `/api/health` returning `database: unavailable` and the home screen showing an error.
 
 ## 4. Run migrations
 
