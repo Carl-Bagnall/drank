@@ -3,6 +3,7 @@ import type { ApiError } from "../shared/types";
 import type { SessionUser } from "./auth/session";
 import { getSessionUser, readSessionCookie } from "./auth/session";
 import { ValidationError } from "./validate";
+import { rateLimitAuth } from "./rateLimit";
 import { auth } from "./routes/auth";
 import { drinks } from "./routes/drinks";
 import { health } from "./routes/health";
@@ -29,6 +30,12 @@ export type AppEnv = {
 };
 
 const app = new Hono<AppEnv>();
+
+/**
+ * Rate limiting sits ahead of everything else, so a flood of sign-in attempts
+ * is rejected before it costs a session lookup or a database read.
+ */
+app.use("/api/auth/*", rateLimitAuth);
 
 /**
  * Resolve the session once per request and hand it to every route.

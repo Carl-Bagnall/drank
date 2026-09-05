@@ -23,11 +23,51 @@
     }
   ],
 
+  // Cloudflare's own rate limiter, so auth endpoints cannot be brute-forced
+  // or used to enumerate accounts at speed. Not available in local dev or in
+  // tests, so the code treats the binding as optional.
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
+
   // Open Food Facts asks clients to identify themselves. Not a secret, so a
   // plain var rather than a binding — override per environment if needed.
   "vars": {
     "PRODUCT_USER_AGENT": "Drank/0.1 (https://github.com/Carl-Bagnall/drank) - soft drink catalogue"
   },
 
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+
+  // Preview branches deploy here. A separate Worker AND a separate database:
+  // sharing production D1 would let an untested branch write to real accounts.
+  "env": {
+    "staging": {
+      "name": "staging-drank",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "drank-staging",
+          "database_id": "d8fe2ca8-6701-46a1-a528-e79348a8e9cf",
+          "migrations_dir": "./migrations"
+        }
+      ],
+      // Bindings are not inherited by environments — each one must be
+      // repeated. A distinct namespace_id keeps staging's rate limit buckets
+      // separate from production's.
+      "ratelimits": [
+        {
+          "name": "AUTH_RATE_LIMIT",
+          "namespace_id": "1002",
+          "simple": { "limit": 20, "period": 60 }
+        }
+      ],
+      "vars": {
+        "PRODUCT_USER_AGENT": "Drank-Staging/0.1 (https://github.com/Carl-Bagnall/drank)"
+      }
+    }
+  }
 }

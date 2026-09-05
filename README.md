@@ -4,7 +4,7 @@ A community-driven catalogue and collection app for soft drinks — "Discogs for
 
 Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
 
-> **Status: Phase 5 (barcode and external lookup).** Create an account, browse and search the catalogue, build a private collection and a wantlist, rate drinks, scan or type a barcode, and contribute drinks the catalogue does not have. Polish and deployment remain — see [Roadmap](#roadmap).
+> **Status: deployed.** Live at <https://drank.carlbagnall.workers.dev>. Accounts, catalogue, collections, wantlist, ratings, barcode lookup and drink contribution all work. Phase 6 polish — mobile UX, accessibility, performance — is what remains.
 
 ---
 
@@ -75,11 +75,37 @@ The home screen shows two shelves of drinks. If they load, the full stack — Re
 
 ## 8. Deploy
 
+**Production:** <https://drank.carlbagnall.workers.dev>
+**Staging:** <https://staging-drank.carlbagnall.workers.dev>
+
+Pushing to `main` deploys production. Pushing any other branch deploys staging. Both run typecheck, tests and build first, and both apply migrations before deploying — so a failing test or a broken migration stops the release rather than reaching users.
+
+**The two have separate D1 databases** (`drank` and `drank-staging`), which is the point: a preview branch can run migrations and write rows without touching real accounts.
+
+To deploy by hand:
+
 ```bash
 npm run deploy
 ```
 
-This builds and deploys using the generated `dist/drank/wrangler.json`. Deployment automation is Phase 7 and is not set up yet; `.github/workflows/ci.yml` currently runs typecheck, tests and build only.
+Staging by hand needs the environment resolved at build time:
+
+```bash
+CLOUDFLARE_ENV=staging npm run build && npx wrangler deploy -c dist/drank/wrangler.json
+```
+
+> **`wrangler deploy --env staging` does not work here**, and fails in a confusing way — it silently deploys production. The Cloudflare Vite plugin owns `assets.directory`, so the source config alone is not deployable; the environment has to be resolved during `vite build` via `CLOUDFLARE_ENV`, which writes the correct name and bindings into `dist/drank/wrangler.json`.
+
+### GitHub secrets
+
+The workflows need two repository secrets, under **Settings → Secrets and variables → Actions**:
+
+| Secret | Where to get it |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token, using the **Edit Cloudflare Workers** template |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → Account ID in the right-hand sidebar |
+
+Until both exist, every workflow run fails at the deploy step. The checks before it still run, so a red build tells you which.
 
 ---
 
@@ -185,9 +211,16 @@ Email and password, with server-side sessions. No social login — the brief ask
 
 Recorded deliberately rather than left to be rediscovered.
 
-**1. No rate limiting.** The brief lists it, and login is the obvious place for it. A hand-rolled attempt counter would give false confidence while being trivially bypassed, so the intended answer is Cloudflare's own rate-limiting binding, configured in `wrangler.jsonc` at deployment. **Tracked for Phase 7, and the higher priority of the two.**
+**1. Rate limiting is a brake, not a hard cap.** *(Implemented in Phase 7.)* Auth endpoints go through Cloudflare's rate-limiting binding at 20 requests per minute, keyed on `CF-Connecting-IP` — a header the edge sets and a caller cannot forge.
 
-Note this is what actually defends the login form. Identifier secrecy never did — see gap 2 — so rate limiting, password length and (later) breached-password screening are the real controls.
+Two honest caveats, both verified against the deployed Worker:
+
+- **Cloudflare counts per isolate, not globally.** Hammering one keep-alive connection is refused at attempt 22. Rotating connections spreads the count across isolates and gets more headroom. It stops sustained abuse from one client; it is not an exact global ceiling.
+- **Requests without `CF-Connecting-IP` are not limited at all.** That covers local development and the test suite. There is deliberately no fallback key: lumping every unidentified caller into one bucket limits nobody individually and throttles everyone together — which is exactly how the test suite locked itself out when it was first written that way. In production a request cannot reach the Worker without passing the edge that sets the header.
+
+The limiter also fails open if the binding errors. A rate limiter that is itself broken must not become the outage it exists to prevent.
+
+Rate limiting, password length and (later) breached-password screening are what actually defend the login form. Identifier secrecy never did — see gap 2.
 
 **2. Registration reveals whether an email address has an account.** `POST /api/auth/register` answers "An account already exists for that email", so anyone can test an address for membership. Login is careful about this; registration is not.
 
@@ -253,4 +286,4 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | 4 | Ratings UI: personal and community | **Done** |
 | 5 | Open Food Facts lookup and barcode scanning | **Done** |
 | 6 | Polish: mobile UX, accessibility, performance | Next |
-| 7 | Production deployment and GitHub workflows | |
+| 7 | Production deployment and GitHub workflows | **Done** |

@@ -492,3 +492,42 @@ describe("collection", () => {
     expect((await signedOut.json<DrinkDetailResponse>()).inViewerCollection).toBe(false);
   });
 });
+
+describe("rate limiting", () => {
+  /**
+   * The limiter keys on `CF-Connecting-IP`, which Cloudflare's edge sets and a
+   * caller cannot forge. Requests without it — local development, and the rest
+   * of this suite — are deliberately not limited, because there is no way to
+   * tell those callers apart and throttling them as one group limits nobody.
+   */
+  it("keeps working when a client is identified", async () => {
+    // The local runtime does not enforce the rate limit binding, so asserting
+    // a 429 here would be testing miniflare rather than this code. What is
+    // worth holding is that the middleware does not break the request path
+    // when a client IP is present — the enforcement itself is verified
+    // against the deployed Worker.
+    const ip = "203.0.113.9";
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const response = await SELF.fetch(`${BASE}/auth/login`, {
+        method: "POST",
+        headers: { ...JSON_HEADERS, "CF-Connecting-IP": ip },
+        body: JSON.stringify({ identifier: "nobody", password: "wrong password" }),
+      });
+      // 401 for bad credentials, or 429 if the runtime does enforce it.
+      expect([401, 429]).toContain(response.status);
+    }
+  });
+
+  it("does not limit callers it cannot identify", async () => {
+    // No CF-Connecting-IP: many attempts, none rejected as rate limited.
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const response = await SELF.fetch(`${BASE}/auth/login`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ identifier: "nobody", password: "wrong password" }),
+      });
+      expect(response.status).toBe(401);
+    }
+  });
+});
