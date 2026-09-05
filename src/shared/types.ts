@@ -195,3 +195,46 @@ export interface RatingBreakdownResponse {
  * either in your collection or on your wantlist, never both.
  */
 export type CollectionStatus = "collected" | "wanted";
+
+/** A product suggested by an external provider. Never authoritative. */
+export interface ProductSuggestion {
+  barcode: string;
+  name: string | null;
+  brand: string | null;
+  volumeMl: number | null;
+  country: string | null;
+  imageUrl: string | null;
+  source: string;
+  sourceId: string;
+}
+
+/**
+ * Response shape of GET /api/products/barcode/:barcode.
+ *
+ * All three outcomes are normal. An unknown barcode is not an error, and a
+ * provider being unreachable is reported as `not_found` with
+ * `providerAvailable: false`, because the user's next step is the same.
+ */
+export type BarcodeLookupResponse =
+  | {
+      status: "in_catalogue";
+      drink: { id: string; name: string; brand: string; imageUrl: string | null };
+    }
+  | { status: "suggestion"; suggestion: ProductSuggestion }
+  | { status: "not_found"; barcode: string; providerAvailable: boolean };
+
+/** Body of POST /api/drinks. Only name and brand are required. */
+export interface NewDrinkInput {
+  name: string;
+  brand: string;
+  flavour?: string | null;
+  category?: string | null;
+  country?: string | null;
+  volumeMl?: number | null;
+  packaging?: string | null;
+  barcode?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  externalSource?: string | null;
+  externalSourceId?: string | null;
+}

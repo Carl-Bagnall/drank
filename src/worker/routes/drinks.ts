@@ -11,6 +11,19 @@ import {
   listDrinks,
   type DrinkSort,
 } from "../db/drinks";
+import { createDrink, findPossibleDuplicates } from "../db/createDrink";
+import {
+  DRINK_CATEGORIES,
+  PACKAGING_TYPES,
+  optionalBarcode,
+  optionalCountry,
+  optionalEnum,
+  optionalImageUrl,
+  optionalPositiveInt,
+  optionalString,
+  readJsonObject,
+  requireString,
+} from "../validate";
 
 export const drinks = new Hono<AppEnv>();
 
@@ -133,4 +146,71 @@ drinks.get("/drinks/:id", async (c) => {
     inViewerCollection: detail.inViewerCollection,
     viewerEntry: detail.viewerEntry,
   });
+});
+
+/**
+ * POST /api/drinks — contribute a drink to the catalogue.
+ *
+ * Requires an account. An anonymous write endpoint on a public catalogue is a
+ * spam vector with nobody to attribute or moderate against, and `created_by`
+ * is what makes contributions traceable.
+ *
+ * Only name and brand are required: the brief is explicit that a user should
+ * be able to add a drink from just those, and every other column is nullable
+ * to match.
+ */
+drinks.post("/drinks", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    const error: ApiError = {
+      error: "unauthenticated",
+      message: "You need to be signed in to add a drink.",
+    };
+    return c.json(error, 401);
+  }
+
+  const body = await readJsonObject(c.req.raw);
+
+  const result = await createDrink(c.env.DB, {
+    name: requireString(body, "name", { max: 200 }),
+    brand: requireString(body, "brand", { max: 120 }),
+    flavour: optionalString(body, "flavour", { max: 120 }),
+    category: optionalEnum(body, "category", DRINK_CATEGORIES),
+    country: optionalCountry(body),
+    volumeMl: optionalPositiveInt(body, "volumeMl", 10_000),
+    packaging: optionalEnum(body, "packaging", PACKAGING_TYPES),
+    barcode: optionalBarcode(body),
+    description: optionalString(body, "description", { max: 2000 }),
+    imageUrl: optionalImageUrl(body),
+    externalSource: optionalString(body, "externalSource", { max: 60 }),
+    externalSourceId: optionalString(body, "externalSourceId", { max: 120 }),
+    createdByUserId: user.id,
+  });
+
+  if (result.status === "duplicate_barcode") {
+    // Not a failure to recover from: that barcode is already catalogued, so
+    // the useful response is the drink they were about to duplicate.
+    return c.json(
+      {
+        error: "already_exists",
+        message: "A drink with that barcode is already in the catalogue.",
+        drinkId: result.id,
+      },
+      409,
+    );
+  }
+
+  return c.json({ id: result.id }, 201);
+});
+
+/**
+ * GET /api/drinks/:id/siblings-by-brand — what already exists under a brand.
+ *
+ * Used by the add form to surface possible duplicates before creating. It
+ * never blocks: variants really are separate drinks, so this only shows the
+ * family so somebody can spot the one they meant.
+ */
+drinks.get("/brands/:brand/drinks", async (c) => {
+  const brand = c.req.param("brand");
+  return c.json({ items: await findPossibleDuplicates(c.env.DB, brand) });
 });

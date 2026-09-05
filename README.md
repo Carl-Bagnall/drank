@@ -4,7 +4,7 @@ A community-driven catalogue and collection app for soft drinks — "Discogs for
 
 Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
 
-> **Status: Phase 4 (ratings).** Create an account, browse and search the catalogue, build a private collection with notes and favourites, and rate drinks 0–10. Open Food Facts lookup and barcode scanning are next — see [Roadmap](#roadmap).
+> **Status: Phase 5 (barcode and external lookup).** Create an account, browse and search the catalogue, build a private collection and a wantlist, rate drinks, scan or type a barcode, and contribute drinks the catalogue does not have. Polish and deployment remain — see [Roadmap](#roadmap).
 
 ---
 
@@ -138,12 +138,35 @@ test/             Vitest suites, run inside workerd against real D1
 | `POST /api/drinks/:id/rating` | Set your score (`{ score }`, 0–10 in steps of 0.1). Upserts |
 | `DELETE /api/drinks/:id/rating` | Withdraw your score |
 | `GET /api/drinks/:id/ratings` | Community spread across eleven whole-number bands. Public |
+| `POST /api/drinks` | Contribute a drink. Name and brand required, everything else optional |
+| `GET /api/brands/:brand/drinks` | Existing drinks under a brand, to surface duplicates before adding |
+| `GET /api/products/barcode/:barcode` | Barcode lookup: catalogue first, then Open Food Facts |
 
 **There is no separate `/api/search`.** The brief suggests one, but searching differs from listing only by a `WHERE` clause — a second route would duplicate the sorting, pagination and rating-aggregation logic for no benefit. Search is `GET /api/drinks?q=…`.
 
 `cursor` is opaque and must be passed back verbatim. It currently encodes an offset; moving to keyset pagination later changes only that encoding, not the API shape.
 
 SQL lives in `src/worker/db/`, not in route handlers, so routes stay about HTTP and queries can be tested directly.
+
+### External product data
+
+Open Food Facts, read-only, behind a `ProductDataProvider` interface in `src/worker/services/`. Nothing is scraped — this calls their documented v2 endpoint, asks only for the fields it uses, and identifies itself with a `User-Agent` as they request (`PRODUCT_USER_AGENT` in `wrangler.jsonc`).
+
+- **The catalogue is the source of truth.** A barcode is matched against Drank first, and a provider only ever *suggests* values for a drink somebody is about to create. Nothing external writes to the database.
+- **An unknown barcode is not an error**, and neither is the provider being down. Both return `not_found`, distinguished only by `providerAvailable`, because the user's next step is identical: type it in.
+- **Successful lookups are cached for a day** using the Cloudflare Cache API rather than a KV namespace or a third-party store. Failures are never cached, so an outage cannot be remembered as a missing product.
+
+### Barcode scanning
+
+Uses the browser's own `BarcodeDetector`. A WASM decoder would work in more browsers but costs hundreds of kilobytes on an app meant to be fast on a phone in a shop.
+
+**This means scanning does not work everywhere**, and the app says so rather than failing silently:
+
+- **Works:** Chrome and Edge on Android, and desktop Chrome.
+- **Does not work:** Firefox, and Safari or any iOS browser — every iOS browser uses WebKit, so an iPhone cannot scan regardless of which browser is installed.
+- **Does not work over plain HTTP.** Camera access needs a secure context, so a dev server reached at a LAN address cannot scan even in Chrome. `localhost` counts as secure; production over HTTPS is fine.
+
+Typing the barcode is therefore a first-class path, always visible, never hidden behind a failure. Everything after the lookup is identical whichever way the number arrived.
 
 ### Authentication
 
@@ -228,6 +251,6 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | 2 | Catalogue: drink API, cards, detail page, search, discovery | **Done** |
 | 3 | Accounts and collections | **Done** |
 | 4 | Ratings UI: personal and community | **Done** |
-| 5 | Open Food Facts lookup and barcode scanning | Next |
-| 6 | Polish: mobile UX, accessibility, performance | |
+| 5 | Open Food Facts lookup and barcode scanning | **Done** |
+| 6 | Polish: mobile UX, accessibility, performance | Next |
 | 7 | Production deployment and GitHub workflows | |

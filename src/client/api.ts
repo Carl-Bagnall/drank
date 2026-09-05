@@ -1,6 +1,7 @@
 import type {
   ApiError,
   AuthResponse,
+  BarcodeLookupResponse,
   CollectionItem,
   CollectionListResponse,
   CollectionStatus,
@@ -8,6 +9,7 @@ import type {
   DrinkListResponse,
   Facets,
   MeResponse,
+  NewDrinkInput,
   RatingBreakdownResponse,
   RatingResponse,
 } from "../shared/types";
@@ -257,4 +259,32 @@ export function getRatingBreakdown(
     `/drinks/${encodeURIComponent(drinkId)}/ratings`,
     { signal },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Products and contributions
+// ---------------------------------------------------------------------------
+
+export function lookupBarcode(
+  barcode: string,
+  signal?: AbortSignal,
+): Promise<BarcodeLookupResponse> {
+  return apiFetch<BarcodeLookupResponse>(
+    `/products/barcode/${encodeURIComponent(barcode)}`,
+    { signal },
+  );
+}
+
+export function createDrink(input: NewDrinkInput): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>("/drinks", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function getBrandDrinks(
+  brand: string,
+  signal?: AbortSignal,
+): Promise<{ items: { id: string; name: string; brand: string }[] }> {
+  return apiFetch(`/brands/${encodeURIComponent(brand)}/drinks`, { signal });
 }

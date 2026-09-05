@@ -23,5 +23,11 @@
     }
   ],
 
+  // Open Food Facts asks clients to identify themselves. Not a secret, so a
+  // plain var rather than a binding — override per environment if needed.
+  "vars": {
+    "PRODUCT_USER_AGENT": "Drank/0.1 (https://github.com/Carl-Bagnall/drank) - soft drink catalogue"
+  },
+
   "observability": { "enabled": true }
 }

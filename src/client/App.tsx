@@ -9,6 +9,7 @@ import { NotFound } from "./pages/NotFound";
 import { Profile } from "./pages/Profile";
 import { Scan } from "./pages/Scan";
 import { SignIn } from "./pages/SignIn";
+import { AddDrink } from "./pages/AddDrink";
 import { Wantlist } from "./pages/Wantlist";
 
 /**
@@ -28,6 +29,7 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route index element={<Home />} />
             <Route path="discover" element={<Discover />} />
+            <Route path="drinks/new" element={<AddDrink />} />
             <Route path="drinks/:id" element={<DrinkDetail />} />
             <Route path="scan" element={<Scan />} />
             <Route path="collection" element={<Collection />} />

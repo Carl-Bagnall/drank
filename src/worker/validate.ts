@@ -1,11 +1,18 @@
 /**
  * Small validation helpers for request bodies.
  *
- * Deliberately hand-rolled rather than pulling in a schema library: every
- * payload in this phase is a handful of scalar fields, and the brief asks not
- * to add dependencies without a reason. If the add-a-drink payload (ten-plus
- * optional fields with cross-field rules) lands and this starts to sprawl,
- * that is the point to reach for Zod.
+ * Deliberately hand-rolled rather than pulling in a schema library, and the
+ * brief asks not to add dependencies without a reason.
+ *
+ * An earlier note here said the add-a-drink payload would be the point to
+ * reach for Zod. That payload has now landed, and the trade did not tip: its
+ * twelve fields are each an independent scalar rule, which is what these
+ * helpers already express, and several carry app-specific behaviour a schema
+ * would not (rejecting non-http image URLs, upper-casing country codes,
+ * treating empty strings as absent).
+ *
+ * What would tip it: nested objects, arrays of objects, or rules that span
+ * fields. None of those exist yet.
  */
 
 export class ValidationError extends Error {
@@ -151,6 +158,98 @@ export function validatePassword(body: Record<string, unknown>): string {
   }
   if (value.length > 128) {
     throw new ValidationError("Password must be 128 characters or fewer.");
+  }
+  return value;
+}
+
+/** Categories the catalogue recognises. Free text would fragment the facets. */
+export const DRINK_CATEGORIES = [
+  "cola",
+  "lemonade",
+  "citrus",
+  "fruit",
+  "energy",
+  "ginger_beer",
+  "other",
+] as const;
+
+export const PACKAGING_TYPES = [
+  "can",
+  "bottle_glass",
+  "bottle_plastic",
+  "carton",
+  "pouch",
+  "other",
+] as const;
+
+export function optionalEnum(
+  body: Record<string, unknown>,
+  field: string,
+  allowed: readonly string[],
+): string | null {
+  const value = optionalString(body, field, { max: 40 });
+  if (value === null) return null;
+  if (!allowed.includes(value)) {
+    throw new ValidationError(`${field} must be one of: ${allowed.join(", ")}.`);
+  }
+  return value;
+}
+
+/** ISO 3166-1 alpha-2, upper-cased. */
+export function optionalCountry(body: Record<string, unknown>): string | null {
+  const value = optionalString(body, "country", { max: 2 });
+  if (value === null) return null;
+  if (!/^[A-Za-z]{2}$/.test(value)) {
+    throw new ValidationError("country must be a two-letter country code.");
+  }
+  return value.toUpperCase();
+}
+
+export function optionalPositiveInt(
+  body: Record<string, unknown>,
+  field: string,
+  max: number,
+): number | null {
+  const value = body[field];
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max) {
+    throw new ValidationError(
+      `${field} must be a whole number between 1 and ${max}.`,
+    );
+  }
+  return parsed;
+}
+
+/**
+ * An image URL that is safe to put in an `src`.
+ *
+ * Only http and https are accepted. Rejecting every other scheme keeps
+ * `javascript:`, `data:` and `blob:` out of the database rather than relying
+ * on each render site to be careful.
+ */
+export function optionalImageUrl(body: Record<string, unknown>): string | null {
+  const value = optionalString(body, "imageUrl", { max: 2000 });
+  if (value === null) return null;
+
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new ValidationError("imageUrl must be a valid URL.");
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new ValidationError("imageUrl must start with http:// or https://.");
+  }
+  return url.toString();
+}
+
+/** A barcode, when one is supplied. Optional everywhere by design. */
+export function optionalBarcode(body: Record<string, unknown>): string | null {
+  const value = optionalString(body, "barcode", { max: 14 });
+  if (value === null) return null;
+  if (!/^\d{8,14}$/.test(value)) {
+    throw new ValidationError("A barcode is 8 to 14 digits.");
   }
   return value;
 }

@@ -6,13 +6,21 @@ import { ValidationError } from "./validate";
 import { auth } from "./routes/auth";
 import { drinks } from "./routes/drinks";
 import { health } from "./routes/health";
+import { products } from "./routes/products";
 import { ratings } from "./routes/ratings";
 import { users } from "./routes/users";
 
-export interface Env {
-  DB: D1Database;
-  ASSETS: Fetcher;
-}
+/**
+ * Bindings, taken from the types `wrangler types` generates out of
+ * wrangler.jsonc.
+ *
+ * Deliberately not hand-written. A hand-maintained copy silently drifts from
+ * the config — adding a binding to wrangler.jsonc and forgetting it here
+ * produces a type error at the use site rather than at the source, which is
+ * exactly the confusion this avoids. Run `npm run cf-typegen` after changing
+ * bindings.
+ */
+export type Env = Cloudflare.Env;
 
 /** Hono environment: bindings plus the resolved session user. */
 export type AppEnv = {
@@ -66,6 +74,7 @@ app.onError((err, c) => {
 app.route("/api", health);
 app.route("/api", auth);
 app.route("/api", drinks);
+app.route("/api", products);
 app.route("/api", ratings);
 app.route("/api", users);
 
