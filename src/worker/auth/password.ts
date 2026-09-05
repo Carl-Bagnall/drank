@@ -12,12 +12,28 @@
  */
 
 /**
- * OWASP recommends 600,000 iterations for PBKDF2-HMAC-SHA-256. That exceeds
- * the 10ms CPU budget of a free-tier Worker request, so this sits lower
- * deliberately. Raise it when the app runs on a paid plan: existing hashes
- * carry their own count and keep working.
+ * 100,000 is the ceiling, not a preference.
+ *
+ * Cloudflare's WebCrypto rejects PBKDF2 above 100,000 iterations. This is a
+ * platform limit, not a plan limit — a paid plan does not raise it, so this
+ * cannot be increased while PBKDF2 is the algorithm. OWASP recommends 600,000
+ * for PBKDF2-HMAC-SHA-256, so this is meaningfully below current guidance.
+ *
+ * An earlier version used 210,000 on the assumption that the constraint was
+ * the request CPU budget. It is not: the call throws outright, and because it
+ * happened inside the registration insert's try block, every sign-up was
+ * reported as "that username is taken". Both the number and the reasoning were
+ * wrong, which is why the real limit is recorded here.
+ *
+ * Getting closer to guidance means changing algorithm, not iteration count —
+ * bcrypt or Argon2 compiled to WASM. That is a real dependency and a real
+ * decision; until then, rate limiting and password length carry more of the
+ * weight than they otherwise would.
+ *
+ * Each hash still records the count it was made with, so raising this later
+ * does not invalidate existing passwords.
  */
-const ITERATIONS = 210_000;
+const ITERATIONS = 100_000;
 const KEY_BITS = 256;
 const SALT_BYTES = 16;
 

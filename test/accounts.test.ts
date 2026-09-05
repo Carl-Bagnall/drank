@@ -531,3 +531,18 @@ describe("rate limiting", () => {
     }
   });
 });
+
+describe("password hashing limits", () => {
+  it("stays within the iteration count Cloudflare's WebCrypto accepts", async () => {
+    // Not a style preference. Workers reject PBKDF2 above 100,000 iterations,
+    // and the failure surfaces as a thrown call inside registration — which
+    // once got reported to users as "that username is taken". Locking the
+    // number down here stops it drifting back up.
+    const hash = await hashPassword("correct horse battery");
+    const iterations = Number(hash.split("$")[2]);
+
+    expect(Number.isInteger(iterations)).toBe(true);
+    expect(iterations).toBeLessThanOrEqual(100_000);
+    expect(await verifyPassword("correct horse battery", hash)).toBe(true);
+  });
+});

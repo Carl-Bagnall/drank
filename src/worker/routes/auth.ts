@@ -89,7 +89,20 @@ auth.post("/auth/register", async (c) => {
     )
       .bind(id, username, email, await hashPassword(password))
       .run();
-  } catch {
+  } catch (err) {
+    // Only a uniqueness violation means "taken". Reporting every failure that
+    // way told a user their brand-new username was taken when the real cause
+    // was something else entirely, and swallowed the error that would have
+    // explained it.
+    const message = err instanceof Error ? err.message : String(err);
+    const isDuplicate =
+      message.includes("UNIQUE") || message.includes("constraint failed");
+
+    if (!isDuplicate) {
+      console.error("Registration failed:", message);
+      throw err;
+    }
+
     // The unique index fired — someone registered the same details in the
     // gap between the check above and this insert.
     const body: ApiError = {
