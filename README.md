@@ -57,7 +57,18 @@ npm run db:migrate:remote   # against Cloudflare
 npm run db:seed             # local
 ```
 
-54 drinks across 27 brands and 11 countries, 5 users and ~160 ratings. The seed is re-runnable and safe on a database with real users in it: it replaces only rows it owns, and upserts drinks rather than deleting them, because deleting a drink would cascade away real ratings and collection entries. **Do not run it against production.**
+This runs two files:
+
+- **`seed/catalogue.sql`** — 54 real drinks across 27 brands and 11 countries. No users, no ratings, no collection entries, so it is **safe to run against production**. It is loaded there already.
+- **`seed/dev-extras.sql`** — 5 fake users and ~160 fabricated ratings on top. **Never run this against production**: those scores would appear as real community ratings and the accounts cannot be logged into.
+
+The drinks live in one file only, so the two cannot drift. Both upsert rather than delete, because deleting a drink cascades through `ratings.drink_id` and `collection_entries.drink_id` and destroys real users' data.
+
+To load just the catalogue into production:
+
+```bash
+npm run db:catalogue:remote
+```
 
 ## 6. Configure environment variables
 

@@ -15,8 +15,9 @@
     "cf-typegen": "wrangler types",
     "db:migrate": "wrangler d1 migrations apply drank --local",
     "db:migrate:remote": "wrangler d1 migrations apply drank --remote",
-    "db:seed": "wrangler d1 execute drank --local --file=./seed/seed.sql",
-    "db:seed:remote": "wrangler d1 execute drank --remote --file=./seed/seed.sql",
+    "db:seed": "npm run db:catalogue && wrangler d1 execute drank --local --file=./seed/dev-extras.sql",
+    "db:catalogue": "wrangler d1 execute drank --local --file=./seed/catalogue.sql",
+    "db:catalogue:remote": "wrangler d1 execute drank --remote --file=./seed/catalogue.sql",
     "db:studio": "wrangler d1 execute drank --local --command=\"SELECT name FROM sqlite_master WHERE type='table'\""
   },
   "dependencies": {

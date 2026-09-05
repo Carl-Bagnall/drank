@@ -1,39 +1,20 @@
--- Drank — development seed data
+-- Drank — the starting catalogue.
 --
--- Re-runnable: every row it owns is prefixed `seed-` and cleared first.
--- Never run this against production.
+-- Real products only. No users, no ratings, no collection entries, so this is
+-- safe to run against production: it cannot invent community scores or create
+-- accounts nobody owns.
 --
--- Deliberately includes multiple variants per brand, because the core
--- collecting idea is that "Coca-Cola" is a brand and "Coca-Cola Cherry" is a
--- drink. Some rows intentionally have NULL image_url / flavour / barcode so
--- the incomplete-product path and image placeholders get exercised.
-
--- Only rows the seed itself owns are deleted.
+-- Upserted rather than deleted and reinserted. Deleting a drink would cascade
+-- through ratings.drink_id and collection_entries.drink_id and destroy real
+-- users' data, so re-running this is safe on a live database.
 --
--- Drinks are deliberately NOT deleted, even though the seed created them.
--- Real users' ratings and collection entries reference them, and
--- ON DELETE CASCADE on ratings.drink_id and collection_entries.drink_id means
--- deleting a drink silently destroys that user data. Re-running the seed must
--- be safe on a database somebody is actually using, so drinks are upserted
--- below instead.
-DELETE FROM ratings            WHERE id LIKE 'seed-%';
-DELETE FROM collection_entries WHERE id LIKE 'seed-%';
-DELETE FROM users              WHERE id LIKE 'seed-%';
+-- `created_by_user_id` is NULL throughout: these were not contributed by any
+-- individual, and pointing them at a seed account that does not exist in
+-- production would violate the foreign key.
+--
+-- This is the single list of drinks. seed/dev-extras.sql layers development
+-- users and ratings on top of it rather than repeating it.
 
--- ---------------------------------------------------------------------------
--- Users. `password_hash` is a placeholder that cannot match real PBKDF2
--- verification, so these accounts can never be logged into.
--- ---------------------------------------------------------------------------
-INSERT INTO users (id, username, email, password_hash, display_name) VALUES
-  ('seed-user-demo', 'demo',  'demo@example.com',  'seed-no-login', 'Demo Collector'),
-  ('seed-user-ally', 'ally',  'ally@example.com',  'seed-no-login', 'Ally'),
-  ('seed-user-bo',   'bo',    'bo@example.com',    'seed-no-login', 'Bo'),
-  ('seed-user-cass', 'cass',  'cass@example.com',  'seed-no-login', 'Cass'),
-  ('seed-user-dev',  'devan', 'devan@example.com', 'seed-no-login', 'Devan');
-
--- ---------------------------------------------------------------------------
--- Drinks
--- ---------------------------------------------------------------------------
 INSERT INTO drinks
   (id, name, brand, brand_normalised, flavour, category, country, volume_ml,
    packaging, barcode, caffeine_status, sugar_status, description, created_by_user_id)
@@ -109,8 +90,8 @@ VALUES
   ('seed-club-mate', 'Club-Mate', 'Loscher', 'loscher', 'Yerba Mate', 'other', 'DE', 500, 'bottle_glass', NULL, 'caffeinated', 'reduced_sugar', 'Yerba mate soda, a hacker-scene staple.', NULL),
 
   -- Deliberately incomplete: name + brand only, as a user contribution would be.
-  ('seed-incomplete-1', 'Cherry Cream Soda', 'Local Fizz Co', 'local fizz co', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-demo'),
-  ('seed-incomplete-2', 'Elderflower Pop', 'Hedgerow Sodas', 'hedgerow sodas', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'seed-user-ally')
+  ('seed-incomplete-1', 'Cherry Cream Soda', 'Local Fizz Co', 'local fizz co', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+  ('seed-incomplete-2', 'Elderflower Pop', 'Hedgerow Sodas', 'hedgerow sodas', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 -- Upsert rather than delete-and-insert, so a drink row keeps its identity and
 -- nothing referencing it is cascaded away. This is what makes the seed safe to
 -- re-run against a database with real users in it.
@@ -126,58 +107,6 @@ ON CONFLICT(id) DO UPDATE SET
   barcode            = excluded.barcode,
   caffeine_status    = excluded.caffeine_status,
   sugar_status       = excluded.sugar_status,
-  description        = excluded.description,
-  created_by_user_id = excluded.created_by_user_id;
-
--- Spread the catalogue over the past six months. Inserted in one statement,
--- every drink would otherwise share a created_at to the millisecond, which
--- makes "recently added" arbitrary and untestable. Derived from rowid so the
--- ordering is identical on every machine.
-UPDATE drinks
-SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || ((rowid * 7) % 180) || ' days'),
-    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || ((rowid * 7) % 180) || ' days')
-WHERE id LIKE 'seed-%';
-
--- ---------------------------------------------------------------------------
--- Ratings — each seed user rates roughly 60% of the catalogue, scored
--- 4.5..9.5 (stored as tenths 45..95). Gives the community-rating query
--- something realistic to average, at the full 0.1 resolution.
---
--- The selection and the score are derived from a hash of the user and drink
--- ids rather than random(), for two reasons:
---   1. Determinism. Every machine gets the same catalogue, so screenshots and
---      any test that leans on seed data stay stable.
---   2. random() references no column, so SQLite hoists it out of the join's
---      inner loop and evaluates it once per user — giving each user all 54
---      drinks or none at all. Referencing d.id keeps it per-row.
--- ---------------------------------------------------------------------------
-INSERT OR IGNORE INTO ratings (id, user_id, drink_id, score)
-SELECT 'seed-r-' || u.id || '-' || d.id,
-       u.id,
-       d.id,
-       45 + ((unicode(substr(d.id, -1)) * 19
-              + unicode(substr(d.id, -3, 1)) * 31
-              + unicode(substr(u.id, -2, 1)) * 11) % 51)
-FROM users u
-CROSS JOIN drinks d
-WHERE u.id LIKE 'seed-user-%'
-  AND d.id LIKE 'seed-%'
-  AND ((unicode(substr(d.id, -1)) * 7
-        + unicode(substr(d.id, -2, 1)) * 13
-        + unicode(substr(u.id, -1)) * 53
-        + unicode(substr(u.id, -2, 1)) * 3
-        + length(u.id) * 37) % 100) < 60;
-
--- ---------------------------------------------------------------------------
--- A starter collection for the demo user: everything they rated 7.5 or above
--- (75 tenths).
--- ---------------------------------------------------------------------------
-INSERT OR IGNORE INTO collection_entries (id, user_id, drink_id, is_favourite, notes)
-SELECT 'seed-c-' || r.drink_id,
-       r.user_id,
-       r.drink_id,
-       CASE WHEN r.score >= 90 THEN 1 ELSE 0 END,
-       CASE WHEN r.score >= 95 THEN 'One of the best I have tried.' ELSE NULL END
-FROM ratings r
-WHERE r.user_id = 'seed-user-demo'
-  AND r.score >= 75;
+  description        = excluded.description;
+-- created_by_user_id is deliberately not updated: re-running must not clear
+-- attribution if a drink was later credited to a real contributor.
