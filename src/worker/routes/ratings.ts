@@ -8,11 +8,8 @@ import {
   isValidRating,
   toTenths,
 } from "../../shared/rating";
-import {
-  deleteRating,
-  getRatingBreakdown,
-  setRating,
-} from "../db/ratings";
+import { deleteRating, getRatingBreakdown, setRating } from "../db/ratings";
+import { ensureCollected } from "../db/collection";
 import { readJsonObject } from "../validate";
 
 export const ratings = new Hono<AppEnv>();
@@ -45,7 +42,12 @@ ratings.post("/drinks/:id/rating", async (c) => {
     return c.json(error, 400);
   }
 
+  // Rating a drink means having tried it, so it joins the collection. A drink
+  // sitting on the wantlist is promoted rather than duplicated.
   const result = await setRating(c.env.DB, user.id, drinkId, toTenths(score));
+  if (result.status === "ok") {
+    await ensureCollected(c.env.DB, user.id, drinkId);
+  }
 
   if (result.status === "no_such_drink") {
     const error: ApiError = {

@@ -96,8 +96,22 @@ users.get("/users/me/collection", async (c) => {
     return c.json({ error: "bad_request", message: "cursor is not valid." }, 400);
   }
 
+  // One endpoint serves both lists. They share every filter, sort and
+  // pagination rule, so splitting them would duplicate all of it.
+  const listStatus = params.get("status") ?? "collected";
+  if (listStatus !== "collected" && listStatus !== "wanted") {
+    return c.json(
+      {
+        error: "bad_request",
+        message: 'status must be "collected" or "wanted".',
+      } satisfies ApiError,
+      400,
+    );
+  }
+
   const brand = params.get("brand")?.trim();
   const { items, total } = await listCollection(c.env.DB, user.id, {
+    status: listStatus,
     sort: sortParam as CollectionSort,
     brand: brand ? normaliseBrand(brand) : undefined,
     category: params.get("category")?.trim() || undefined,
@@ -127,7 +141,18 @@ users.post("/users/me/collection", async (c) => {
     return c.json({ error: "bad_request", message: "drinkId is required." }, 400);
   }
 
-  const result = await addToCollection(c.env.DB, user.id, drinkId);
+  const statusParam = body["status"] ?? "collected";
+  if (statusParam !== "collected" && statusParam !== "wanted") {
+    return c.json(
+      {
+        error: "bad_request",
+        message: 'status must be "collected" or "wanted".',
+      } satisfies ApiError,
+      400,
+    );
+  }
+
+  const result = await addToCollection(c.env.DB, user.id, drinkId, statusParam);
 
   if (result.status === "no_such_drink") {
     return c.json(
@@ -136,11 +161,10 @@ users.post("/users/me/collection", async (c) => {
     );
   }
 
-  // A duplicate is not an error the user needs to recover from — the brief
-  // asks that they simply be taken to the entry they already have. 200 with
-  // `alreadyCollected` lets the client say so without a failure path.
+  // Neither a repeat add nor a move between lists is a failure the user needs
+  // to recover from, so both return 200 with an outcome the client can phrase.
   return c.json(
-    { drinkId, alreadyCollected: result.status === "already_collected" },
+    { drinkId, status: statusParam, outcome: result.status },
     result.status === "added" ? 201 : 200,
   );
 });

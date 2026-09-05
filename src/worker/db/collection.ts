@@ -1,6 +1,7 @@
 import type {
   CollectionItem,
   CollectionStats,
+  CollectionStatus,
   Facet,
   Facets,
 } from "../../shared/types";
@@ -18,6 +19,8 @@ export type { CollectionItem };
 export type CollectionSort = "recent" | "highest" | "lowest" | "name";
 
 export interface ListCollectionOptions {
+  /** Which list to read: owned drinks or the wantlist. */
+  status?: CollectionStatus;
   sort?: CollectionSort;
   brand?: string;
   category?: string;
@@ -37,6 +40,7 @@ interface CollectionRow {
   flavour: string | null;
   category: string | null;
   image_url: string | null;
+  status: string;
   added_at: string;
   notes: string | null;
   is_favourite: number;
@@ -65,7 +69,8 @@ function toItem(row: CollectionRow): CollectionItem {
       count: row.rating_count,
     },
     viewerRating: row.viewer_score === null ? null : row.viewer_score / 10,
-    inViewerCollection: true,
+    inViewerCollection: row.status === "collected",
+    status: row.status as CollectionItem["status"],
     addedAt: row.added_at,
     notes: row.notes,
     isFavourite: row.is_favourite === 1,
@@ -79,7 +84,7 @@ function toItem(row: CollectionRow): CollectionItem {
  */
 const SELECT_COLLECTION = `
   SELECT d.id, d.name, d.brand, d.flavour, d.category, d.image_url,
-         ce.added_at, ce.notes, ce.is_favourite,
+         ce.status, ce.added_at, ce.notes, ce.is_favourite,
          MAX(ur.score) AS viewer_score,
          COUNT(r.id)   AS rating_count,
          AVG(r.score)  AS avg_score
@@ -97,8 +102,8 @@ export async function listCollection(
   const limit = Math.min(Math.max(options.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
   const offset = Math.max(options.offset ?? 0, 0);
 
-  const where: string[] = ["ce.user_id = ?"];
-  const params: unknown[] = [userId];
+  const where: string[] = ["ce.user_id = ?", "ce.status = ?"];
+  const params: unknown[] = [userId, options.status ?? "collected"];
 
   if (options.brand) {
     where.push("d.brand_normalised = ?");
@@ -167,9 +172,16 @@ export async function getCollectionStats(
   const [totals, average] = await db.batch<Record<string, number | null>>([
     db
       .prepare(
-        `SELECT COUNT(*)                          AS drink_count,
-                COUNT(DISTINCT d.brand_normalised) AS brand_count,
-                COUNT(DISTINCT d.country)          AS country_count
+        // Every total is scoped to collected drinks. A wantlist drink must
+        // never inflate the collection count, the brand count or the country
+        // count — wanting a drink is not owning one.
+        `SELECT
+           COUNT(*) FILTER (WHERE ce.status = 'collected')                     AS drink_count,
+           COUNT(DISTINCT CASE WHEN ce.status = 'collected'
+                               THEN d.brand_normalised END)                    AS brand_count,
+           COUNT(DISTINCT CASE WHEN ce.status = 'collected'
+                               THEN d.country END)                             AS country_count,
+           COUNT(*) FILTER (WHERE ce.status = 'wanted')                        AS wantlist_count
          FROM collection_entries ce
          JOIN drinks d ON d.id = ce.drink_id
          WHERE ce.user_id = ?`,
@@ -181,7 +193,7 @@ export async function getCollectionStats(
          FROM ratings r
          JOIN collection_entries ce
            ON ce.drink_id = r.drink_id AND ce.user_id = r.user_id
-         WHERE r.user_id = ?`,
+         WHERE r.user_id = ? AND ce.status = 'collected'`,
       )
       .bind(userId),
   ]);
@@ -193,6 +205,7 @@ export async function getCollectionStats(
     drinkCount: Number(row["drink_count"] ?? 0),
     brandCount: Number(row["brand_count"] ?? 0),
     countryCount: Number(row["country_count"] ?? 0),
+    wantlistCount: Number(row["wantlist_count"] ?? 0),
     averageRating: toCommunityAverage(avgScore),
   };
 }
@@ -208,7 +221,8 @@ export async function getCollectionFacets(
         `SELECT ${value} AS value, COUNT(*) AS count
          FROM collection_entries ce
          JOIN drinks d ON d.id = ce.drink_id
-         WHERE ce.user_id = ? AND ${column} IS NOT NULL AND ${column} != ''
+         WHERE ce.user_id = ? AND ce.status = 'collected'
+           AND ${column} IS NOT NULL AND ${column} != ''
          GROUP BY ${column}
          ORDER BY count DESC, value ASC`,
       )
@@ -229,20 +243,26 @@ export async function getCollectionFacets(
 
 export type AddResult =
   | { status: "added" }
-  | { status: "already_collected" }
+  | { status: "moved" }
+  | { status: "unchanged" }
   | { status: "no_such_drink" };
 
 /**
- * Adds a drink to a collection.
+ * Puts a drink on one of the user's two lists, moving it between them if it
+ * is already on the other.
  *
- * `INSERT OR IGNORE` plus a changes check distinguishes "added" from "already
- * there" in a single round trip, and leans on the UNIQUE(user_id, drink_id)
- * constraint rather than a read-then-write race.
+ * Because a drink can only be owned or wanted — never both — moving to the
+ * wantlist withdraws any rating: a rating means you have tried it, and the
+ * wantlist is for drinks you have not.
+ *
+ * `added_at` is reset on a move, so the Collection page's "recently added"
+ * sort means "recently collected" rather than "first noticed".
  */
 export async function addToCollection(
   db: D1Database,
   userId: string,
   drinkId: string,
+  status: CollectionStatus = "collected",
 ): Promise<AddResult> {
   const drink = await db
     .prepare("SELECT id FROM drinks WHERE id = ? AND status = 'published'")
@@ -251,16 +271,73 @@ export async function addToCollection(
 
   if (!drink) return { status: "no_such_drink" };
 
-  const result = await db
+  const existing = await db
     .prepare(
-      "INSERT OR IGNORE INTO collection_entries (id, user_id, drink_id) VALUES (?, ?, ?)",
+      "SELECT status FROM collection_entries WHERE user_id = ? AND drink_id = ?",
+    )
+    .bind(userId, drinkId)
+    .first<{ status: CollectionStatus }>();
+
+  if (!existing) {
+    await db
+      .prepare(
+        "INSERT INTO collection_entries (id, user_id, drink_id, status) VALUES (?, ?, ?, ?)",
+      )
+      .bind(crypto.randomUUID(), userId, drinkId, status)
+      .run();
+    return { status: "added" };
+  }
+
+  if (existing.status === status) return { status: "unchanged" };
+
+  const statements = [
+    db
+      .prepare(
+        `UPDATE collection_entries
+         SET status = ?, added_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE user_id = ? AND drink_id = ?`,
+      )
+      .bind(status, userId, drinkId),
+  ];
+
+  if (status === "wanted") {
+    statements.push(
+      db
+        .prepare("DELETE FROM ratings WHERE user_id = ? AND drink_id = ?")
+        .bind(userId, drinkId),
+    );
+  }
+
+  await db.batch(statements);
+  return { status: "moved" };
+}
+
+/**
+ * Ensures a drink is in the user's collection, used when they rate it.
+ *
+ * Rating a drink means having tried it, so it belongs in the collection —
+ * this is what stops a rating existing without an entry. A drink already on
+ * the wantlist is promoted rather than duplicated.
+ */
+export async function ensureCollected(
+  db: D1Database,
+  userId: string,
+  drinkId: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO collection_entries (id, user_id, drink_id, status)
+       VALUES (?, ?, ?, 'collected')
+       ON CONFLICT(user_id, drink_id) DO UPDATE SET
+         status   = 'collected',
+         added_at = CASE
+           WHEN collection_entries.status = 'wanted'
+           THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           ELSE collection_entries.added_at
+         END`,
     )
     .bind(crypto.randomUUID(), userId, drinkId)
     .run();
-
-  return result.meta.changes === 0
-    ? { status: "already_collected" }
-    : { status: "added" };
 }
 
 /** Returns false when the drink was not in the collection to begin with. */
@@ -269,12 +346,18 @@ export async function removeFromCollection(
   userId: string,
   drinkId: string,
 ): Promise<boolean> {
-  const result = await db
-    .prepare("DELETE FROM collection_entries WHERE user_id = ? AND drink_id = ?")
-    .bind(userId, drinkId)
-    .run();
+  // The rating goes with it. A rating now means "I have tried this", so one
+  // cannot outlive the entry that says so.
+  const [, entryResult] = await db.batch([
+    db
+      .prepare("DELETE FROM ratings WHERE user_id = ? AND drink_id = ?")
+      .bind(userId, drinkId),
+    db
+      .prepare("DELETE FROM collection_entries WHERE user_id = ? AND drink_id = ?")
+      .bind(userId, drinkId),
+  ]);
 
-  return result.meta.changes > 0;
+  return entryResult.meta.changes > 0;
 }
 
 /** Updates notes and favourite status. Returns false if there is no entry. */
@@ -317,7 +400,7 @@ export async function getFavourites(
   const { results } = await db
     .prepare(
       `${SELECT_COLLECTION}
-       WHERE ce.user_id = ? AND ce.is_favourite = 1
+       WHERE ce.user_id = ? AND ce.status = 'collected' AND ce.is_favourite = 1
        GROUP BY ce.id
        ORDER BY ce.added_at DESC
        LIMIT ?`,

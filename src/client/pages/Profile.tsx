@@ -77,6 +77,19 @@ export function Profile() {
         </div>
       )}
 
+      {stats && stats.wantlistCount > 0 && (
+        <Link
+          to="/wantlist"
+          className="sticker-sm mt-5 flex items-center justify-between bg-citrus px-4 py-3 text-sm font-semibold text-ink"
+        >
+          <span>
+            ☆ Wantlist — {stats.wantlistCount}{" "}
+            {stats.wantlistCount === 1 ? "drink" : "drinks"} to try
+          </span>
+          <span aria-hidden="true">→</span>
+        </Link>
+      )}
+
       {favourites.length > 0 && (
         <section className="mt-7" aria-labelledby="favourites-heading">
           <div className="mb-2 flex items-baseline justify-between gap-3 px-1">

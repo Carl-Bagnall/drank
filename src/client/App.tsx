@@ -9,6 +9,7 @@ import { NotFound } from "./pages/NotFound";
 import { Profile } from "./pages/Profile";
 import { Scan } from "./pages/Scan";
 import { SignIn } from "./pages/SignIn";
+import { Wantlist } from "./pages/Wantlist";
 
 /**
  * Routes are declared in one place and match the five primary tabs, plus the
@@ -31,6 +32,7 @@ export function App() {
             <Route path="scan" element={<Scan />} />
             <Route path="collection" element={<Collection />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="wantlist" element={<Wantlist />} />
             <Route path="signin" element={<SignIn />} />
             <Route path="*" element={<NotFound />} />
           </Route>

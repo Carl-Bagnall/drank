@@ -346,7 +346,7 @@ describe("collection", () => {
       body: JSON.stringify({ drinkId: "d1" }),
     });
     expect(first.status).toBe(201);
-    expect(await first.json()).toMatchObject({ alreadyCollected: false });
+    expect(await first.json()).toMatchObject({ outcome: "added" });
 
     const second = await SELF.fetch(`${BASE}/users/me/collection`, {
       method: "POST",
@@ -354,7 +354,7 @@ describe("collection", () => {
       body: JSON.stringify({ drinkId: "d1" }),
     });
     expect(second.status).toBe(200);
-    expect(await second.json()).toMatchObject({ alreadyCollected: true });
+    expect(await second.json()).toMatchObject({ outcome: "unchanged" });
 
     // Still exactly one entry.
     const list = await SELF.fetch(`${BASE}/users/me/collection`, {

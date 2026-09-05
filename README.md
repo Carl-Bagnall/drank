@@ -179,7 +179,9 @@ Five tables: `users`, `drinks`, `collection_entries`, `ratings`, `sessions`.
 - **Only `name` and `brand` are required on a drink.** The catalogue must accept incomplete, user-contributed products.
 - **Ratings are stored as integer tenths, 0–100**, representing 0.0–10.0 in steps of 0.1. Integers keep the range check exact and keep floating-point values out of the database. All conversion lives in `src/shared/rating.ts`.
 - **The community rating is not stored.** It is averaged at query time against an index on `ratings(drink_id)`.
-- **A collection entry carries no rating.** `ratings` is the single source of truth, which keeps "owning" and "rating" separate — you can rate a drink you do not own.
+- **A collection entry carries no rating** — `ratings` is still its own table — but the two are now coupled by product rule: rating a drink collects it, and removing a drink withdraws its rating. Keeping the tables separate means that rule can be relaxed later without a migration.
+- **A collection entry is either `collected` or `wanted`.** One row per user per drink, so the collection and the wantlist are mutually exclusive by construction, and moving between them is an update rather than a delete and an insert.
+- **The wantlist never counts towards collection totals.** Every stat, facet and favourites query is scoped to `status = 'collected'`.
 - **Barcodes are optional but unique when present**, via a partial unique index.
 - Brand, category and country are indexed text rather than lookup tables. `brand_normalised` groups variant families without a join.
 

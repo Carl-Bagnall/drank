@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import type { CommunityRating, DrinkDetailResponse } from "../../shared/types";
+import type { DrinkDetailResponse } from "../../shared/types";
 import { getDrink } from "../api";
+import { useAuth } from "../auth";
 import { DrinkImage } from "../components/DrinkImage";
 import { DrinkGrid } from "../components/DrinkGrid";
 import { RatingBadge } from "../components/Rating";
@@ -35,28 +36,43 @@ const CAFFEINE_LABELS: Record<string, string> = {
 
 export function DrinkDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+
   const [data, setData] = useState<DrinkDetailResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">(
     "loading",
   );
   const [errorMessage, setErrorMessage] = useState("");
-  // Mirrors the collect button so the notes panel appears and disappears
-  // with it, without refetching the drink.
-  const [collected, setCollected] = useState(false);
-  const [community, setCommunity] = useState<CommunityRating>({ average: null, count: 0 });
-  const [viewerRating, setViewerRating] = useState<number | null>(null);
+  /** Set when the drink was just collected, to prompt for a rating. */
+  const [promptRating, setPromptRating] = useState(false);
+
+  const ratingRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Refetches the whole drink after a list change.
+   *
+   * Changing lists has knock-on effects — removing a drink deletes the rating,
+   * which moves the community average — so re-reading is simpler and more
+   * reliable than patching each derived value by hand.
+   */
+  const reload = useCallback(async () => {
+    if (!id) return;
+    try {
+      setData(await getDrink(id));
+    } catch {
+      // Leave the last good render in place; the next action will retry.
+    }
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
     setStatus("loading");
+    setPromptRating(false);
 
     getDrink(id, controller.signal)
       .then((response) => {
         setData(response);
-        setCollected(response.inViewerCollection);
-        setCommunity(response.community);
-        setViewerRating(response.viewerRating);
         setStatus("ready");
       })
       .catch((err: unknown) => {
@@ -79,6 +95,13 @@ export function DrinkDetail() {
     return () => controller.abort();
   }, [id]);
 
+  // Bring the rating control into view once a drink has just been collected.
+  // That is the whole prompt: visible and obvious, but entirely skippable.
+  useEffect(() => {
+    if (!promptRating) return;
+    ratingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [promptRating]);
+
   if (status === "loading") return <LoadingState label="Loading drink" />;
 
   if (status === "missing") {
@@ -99,14 +122,12 @@ export function DrinkDetail() {
 
   if (status === "error" || !data) {
     return (
-      <ErrorState
-        message={errorMessage}
-        onRetry={() => window.location.reload()}
-      />
+      <ErrorState message={errorMessage} onRetry={() => window.location.reload()} />
     );
   }
 
-  const { drink, siblings } = data;
+  const { drink, community, siblings, viewerRating, viewerEntry } = data;
+  const entryStatus = viewerEntry?.status ?? null;
 
   const facts: { label: string; value: string }[] = [];
   if (drink.flavour) facts.push({ label: "Flavour", value: drink.flavour });
@@ -173,36 +194,44 @@ export function DrinkDetail() {
           <div className="mt-4">
             <CollectButton
               drinkId={drink.id}
-              initiallyCollected={data.inViewerCollection}
-              onChange={setCollected}
+              status={entryStatus}
+              onChange={async (_next, justCollected) => {
+                await reload();
+                setPromptRating(justCollected);
+              }}
             />
           </div>
         </div>
       </div>
 
-      <RatingInput
-        drinkId={drink.id}
-        initialRating={data.viewerRating}
-        onRated={(next, nextCommunity) => {
-          setViewerRating(next);
-          setCommunity(nextCommunity);
-        }}
-      />
+      {/* Rating is offered to any signed-in viewer. Saving a score adds the
+          drink to their collection, so a rating can never exist without one. */}
+      {user && (
+        <div ref={ratingRef}>
+          <RatingInput
+            drinkId={drink.id}
+            initialRating={viewerRating}
+            prompt={promptRating}
+            onRated={async () => {
+              setPromptRating(false);
+              await reload();
+            }}
+          />
+        </div>
+      )}
 
-      {collected && (
+      {entryStatus === "collected" && (
         <CollectionNotes
           drinkId={drink.id}
-          initialNotes={data.viewerEntry?.notes ?? null}
-          initialFavourite={data.viewerEntry?.isFavourite ?? false}
+          initialNotes={viewerEntry?.notes ?? null}
+          initialFavourite={viewerEntry?.isFavourite ?? false}
         />
       )}
 
       {drink.description && (
         <section className="sticker mt-5 px-4 py-4">
           <h2 className="eyebrow">About</h2>
-          <p className="mt-2 text-sm leading-relaxed text-ink">
-            {drink.description}
-          </p>
+          <p className="mt-2 text-sm leading-relaxed text-ink">{drink.description}</p>
         </section>
       )}
 

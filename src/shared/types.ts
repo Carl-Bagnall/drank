@@ -84,15 +84,19 @@ export interface DrinkSummary {
  * owning a drink and scoring it stay separate.
  */
 export interface CollectionItem extends DrinkSummary {
+  status: CollectionStatus;
   addedAt: string;
   notes: string | null;
   isFavourite: boolean;
 }
 
 export interface CollectionStats {
+  /** Drinks actually collected. Never includes the wantlist. */
   drinkCount: number;
   brandCount: number;
   countryCount: number;
+  /** Drinks on the wantlist. Counted separately and never mixed in. */
+  wantlistCount: number;
   /** Mean of the viewer's own ratings on the 0–10 scale, or null. */
   averageRating: number | null;
 }
@@ -144,8 +148,12 @@ export interface DrinkDetailResponse {
   siblings: DrinkSummary[];
   viewerRating: number | null;
   inViewerCollection: boolean;
-  /** The viewer's own notes and favourite flag, or null if not collected. */
-  viewerEntry: { notes: string | null; isFavourite: boolean } | null;
+  /** The viewer's own entry, or null if the drink is on neither list. */
+  viewerEntry: {
+    status: CollectionStatus;
+    notes: string | null;
+    isFavourite: boolean;
+  } | null;
 }
 
 /** Response shape of GET /api/users/me. */
@@ -179,3 +187,11 @@ export interface RatingBreakdownResponse {
   /** Counts per whole-number band, 0–10. */
   distribution: { score: number; count: number }[];
 }
+
+/**
+ * Whether a drink is owned or merely wanted.
+ *
+ * These are mutually exclusive: one row per user per drink, so a drink is
+ * either in your collection or on your wantlist, never both.
+ */
+export type CollectionStatus = "collected" | "wanted";

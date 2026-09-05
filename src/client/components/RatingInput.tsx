@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import type { CommunityRating } from "../../shared/types";
 import {
   RATING_MAX,
   RATING_MAX_TENTHS,
@@ -15,8 +14,10 @@ import { useAuth } from "../auth";
 /**
  * Rate a drink from 0 to 10, in steps of 0.1.
  *
- * Rating is independent of collecting — the two are separate tables — so this
- * appears on any drink, whether or not the viewer owns it.
+ * Rating a drink means having tried it, so saving a score also puts the drink
+ * in the viewer's collection — promoting it from the wantlist if it was
+ * there. The control is therefore offered on any drink, but using it is never
+ * neutral: it is how a drink gets collected without pressing the other button.
  *
  * The slider is for choosing roughly; the −/+ buttons are for landing exactly.
  * At 0.1 precision the track holds 100 steps, which is about three pixels each
@@ -30,11 +31,14 @@ import { useAuth } from "../auth";
 export function RatingInput({
   drinkId,
   initialRating,
+  prompt = false,
   onRated,
 }: {
   drinkId: string;
   initialRating: number | null;
-  onRated: (viewerRating: number | null, community: CommunityRating) => void;
+  /** True just after the drink was collected, to invite a score. */
+  prompt?: boolean;
+  onRated: () => void | Promise<void>;
 }) {
   const { user, refresh } = useAuth();
   const navigate = useNavigate();
@@ -90,7 +94,7 @@ export function RatingInput({
     try {
       const response = await api.setRating(drinkId, value);
       setSaved(response.viewerRating);
-      onRated(response.viewerRating, response.community);
+      await onRated();
       // The average shown on the profile and collection is derived from the
       // viewer's own scores, so it moves when this does.
       await refresh();
@@ -105,10 +109,10 @@ export function RatingInput({
     setBusy(true);
     setError("");
     try {
-      const response = await api.deleteRating(drinkId);
+      await api.deleteRating(drinkId);
       setSaved(null);
       setValue(7.5);
-      onRated(null, response.community);
+      await onRated();
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not remove your rating.");
@@ -120,10 +124,25 @@ export function RatingInput({
   const dirty = saved === null || value !== saved;
 
   return (
-    <section className="sticker mt-5 px-4 py-4" aria-labelledby="rate-heading">
+    <section
+      className={[
+        "mt-5 px-4 py-4",
+        prompt && saved === null ? "sticker-lg bg-citrus" : "sticker",
+      ].join(" ")}
+      aria-labelledby="rate-heading"
+    >
       <h2 id="rate-heading" className="eyebrow">
-        {saved === null ? "Rate this drink" : "Your rating"}
+        {saved !== null
+          ? "Your rating"
+          : prompt
+            ? "Added. How was it?"
+            : "Rate this drink"}
       </h2>
+      {prompt && saved === null && (
+        <p className="mt-1 text-xs font-medium text-ink">
+          Optional — you can skip this and rate it later.
+        </p>
+      )}
 
       <div className="mt-3 flex items-center justify-center gap-3">
         <NudgeButton

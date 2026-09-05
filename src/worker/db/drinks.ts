@@ -1,4 +1,10 @@
-import type { Drink, DrinkSummary, Facet, Facets } from "../../shared/types";
+import type {
+  CollectionStatus,
+  Drink,
+  DrinkSummary,
+  Facet,
+  Facets,
+} from "../../shared/types";
 
 /**
  * Drink queries.
@@ -36,6 +42,7 @@ interface DrinkRow {
   avg_score: number | null;
   viewer_score: number | null;
   in_collection: number;
+  entry_status: string | null;
   entry_notes: string | null;
   entry_favourite: number | null;
 }
@@ -120,7 +127,8 @@ const SELECT_WITH_RATINGS = `
          COUNT(r.id)   AS rating_count,
          AVG(r.score)  AS avg_score,
          MAX(ur.score) AS viewer_score,
-         MAX(CASE WHEN ce.id IS NOT NULL THEN 1 ELSE 0 END) AS in_collection,
+         MAX(CASE WHEN ce.status = 'collected' THEN 1 ELSE 0 END) AS in_collection,
+         MAX(ce.status)       AS entry_status,
          MAX(ce.notes)        AS entry_notes,
          MAX(ce.is_favourite) AS entry_favourite
   FROM drinks d
@@ -207,7 +215,11 @@ export interface DrinkDetail {
   viewerRating: number | null;
   inViewerCollection: boolean;
   /** The viewer's own collection entry, or null if they have not collected it. */
-  viewerEntry: { notes: string | null; isFavourite: boolean } | null;
+  viewerEntry: {
+    status: CollectionStatus;
+    notes: string | null;
+    isFavourite: boolean;
+  } | null;
 }
 
 /** A single published drink with its community rating, or null if not found. */
@@ -233,10 +245,13 @@ export async function getDrinkById(
     },
     viewerRating: row.viewer_score === null ? null : row.viewer_score / 10,
     inViewerCollection: row.in_collection === 1,
-    viewerEntry:
-      row.in_collection === 1
-        ? { notes: row.entry_notes, isFavourite: row.entry_favourite === 1 }
-        : null,
+    viewerEntry: row.entry_status
+      ? {
+          status: row.entry_status as CollectionStatus,
+          notes: row.entry_notes,
+          isFavourite: row.entry_favourite === 1,
+        }
+      : null,
   };
 }
 

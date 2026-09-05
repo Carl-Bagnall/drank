@@ -126,7 +126,7 @@ export function Collection() {
         icon="🔒"
         tone="bg-citrus"
         title="Sign in to start collecting"
-        description="Your collection is private to you. Create an account and start adding the drinks you have tried."
+        description="Your collection is private to you. Create an account and start logging the drinks you have tried."
         action={
           <Link to="/signin" state={{ from: "/collection" }} className="btn btn-cherry">
             Sign in
@@ -141,6 +141,19 @@ export function Collection() {
   return (
     <div>
       {stats && <CollectionStats stats={stats} />}
+
+      {stats && stats.wantlistCount > 0 && (
+        <Link
+          to="/wantlist"
+          className="sticker-sm mt-3 flex items-center justify-between bg-citrus px-4 py-3 text-sm font-semibold text-ink"
+        >
+          <span>
+            ☆ Wantlist — {stats.wantlistCount}{" "}
+            {stats.wantlistCount === 1 ? "drink" : "drinks"} to try
+          </span>
+          <span aria-hidden="true">→</span>
+        </Link>
+      )}
 
       <div className="mt-4">
         <label htmlFor="collection-sort" className="eyebrow mb-1 block px-1">

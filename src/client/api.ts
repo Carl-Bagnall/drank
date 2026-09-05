@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CollectionItem,
   CollectionListResponse,
+  CollectionStatus,
   DrinkDetailResponse,
   DrinkListResponse,
   Facets,
@@ -167,6 +168,7 @@ export function getMe(signal?: AbortSignal): Promise<MeResponse> {
 // ---------------------------------------------------------------------------
 
 export interface CollectionQuery {
+  status?: CollectionStatus;
   sort?: "recent" | "highest" | "lowest" | "name";
   brand?: string;
   category?: string;
@@ -196,12 +198,19 @@ export function getFavourites(
   return apiFetch<{ items: CollectionItem[] }>("/users/me/favourites", { signal });
 }
 
+export interface AddToCollectionResult {
+  drinkId: string;
+  status: CollectionStatus;
+  outcome: "added" | "moved" | "unchanged";
+}
+
 export function addToCollection(
   drinkId: string,
-): Promise<{ drinkId: string; alreadyCollected: boolean }> {
+  status: CollectionStatus = "collected",
+): Promise<AddToCollectionResult> {
   return apiFetch("/users/me/collection", {
     method: "POST",
-    body: JSON.stringify({ drinkId }),
+    body: JSON.stringify({ drinkId, status }),
   });
 }
 

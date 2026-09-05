@@ -1,31 +1,33 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useAuth } from "../auth";
+import type { CollectionStatus } from "../../shared/types";
 import * as api from "../api";
+import { useAuth } from "../auth";
 
 /**
- * Add or remove a drink from the signed-in user's collection.
+ * Move a drink between "not on a list", "on my wantlist" and "in my
+ * collection".
  *
- * Optimistic: the label flips immediately and rolls back if the request
- * fails, because on a phone in a shop the round trip is the slow part and
- * waiting for it makes the app feel broken.
+ * The three states are mutually exclusive — one row per user per drink — so
+ * this is a single control with three shapes rather than two independent
+ * toggles that could contradict each other.
  *
- * Signed-out users are sent to sign in and returned to this drink afterwards,
- * rather than being shown a dead control.
+ * Removing from the collection also withdraws the rating, because a rating
+ * now means "I have tried this". The button says so before it happens.
  */
 export function CollectButton({
   drinkId,
-  initiallyCollected,
+  status,
   onChange,
 }: {
   drinkId: string;
-  initiallyCollected: boolean;
-  onChange?: (collected: boolean) => void;
+  status: CollectionStatus | null;
+  /** Reports the new status, and whether this was a fresh collect. */
+  onChange: (status: CollectionStatus | null, justCollected: boolean) => void;
 }) {
   const { user, refresh } = useAuth();
   const navigate = useNavigate();
 
-  const [collected, setCollected] = useState(initiallyCollected);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,64 +36,100 @@ export function CollectButton({
       <button
         type="button"
         className="btn btn-cherry w-full"
-        onClick={() =>
-          navigate("/signin", { state: { from: `/drinks/${drinkId}` } })
-        }
+        onClick={() => navigate("/signin", { state: { from: `/drinks/${drinkId}` } })}
       >
         Sign in to collect
       </button>
     );
   }
 
-  async function toggle() {
+  async function run(action: () => Promise<void>, next: CollectionStatus | null) {
     if (busy) return;
-    const next = !collected;
-
     setBusy(true);
     setError("");
-    setCollected(next);
-    onChange?.(next);
-
     try {
-      if (next) {
-        await api.addToCollection(drinkId);
-      } else {
-        await api.removeFromCollection(drinkId);
-      }
+      await action();
+      onChange(next, next === "collected" && status !== "collected");
       await refresh();
     } catch (err) {
-      // Put the button back the way it was — the server disagreed.
-      setCollected(!next);
-      onChange?.(!next);
       setError(
-        err instanceof Error ? err.message : "Could not update your collection.",
+        err instanceof Error ? err.message : "Could not update your lists.",
       );
     } finally {
       setBusy(false);
     }
   }
 
+  const collect = () =>
+    run(() => api.addToCollection(drinkId, "collected").then(() => undefined), "collected");
+  const want = () =>
+    run(() => api.addToCollection(drinkId, "wanted").then(() => undefined), "wanted");
+  const remove = () =>
+    run(() => api.removeFromCollection(drinkId).then(() => undefined), null);
+
   return (
     <div>
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={busy}
-        aria-pressed={collected}
-        className={[
-          "btn w-full disabled:opacity-70",
-          collected ? "bg-lime" : "btn-cherry",
-        ].join(" ")}
-      >
-        {/* A tick as well as a colour change, so the state is not carried by
-            colour alone. */}
-        {collected ? "✓ In your collection" : "Add to collection"}
-      </button>
+      {status === null && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={collect}
+            disabled={busy}
+            className="btn btn-cherry w-full disabled:opacity-70"
+          >
+            I've tried this
+          </button>
+          <button
+            type="button"
+            onClick={want}
+            disabled={busy}
+            className="btn w-full disabled:opacity-70"
+          >
+            ☆ Add to wantlist
+          </button>
+        </div>
+      )}
 
-      {collected && (
-        <p className="mt-2 text-center text-xs font-medium text-ink-muted">
-          Tap again to remove it.
-        </p>
+      {status === "wanted" && (
+        <div className="flex flex-col gap-2">
+          <p className="sticker-sm bg-citrus px-3 py-2 text-center text-sm font-semibold text-ink">
+            ☆ On your wantlist
+          </p>
+          <button
+            type="button"
+            onClick={collect}
+            disabled={busy}
+            className="btn btn-cherry w-full disabled:opacity-70"
+          >
+            I've tried this
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            className="btn w-full disabled:opacity-70"
+          >
+            Remove from wantlist
+          </button>
+        </div>
+      )}
+
+      {status === "collected" && (
+        <div className="flex flex-col gap-2">
+          {/* A tick as well as a colour change, so the state is not carried by
+              colour alone. */}
+          <p className="sticker-sm bg-lime px-3 py-2 text-center text-sm font-semibold text-ink">
+            ✓ In your collection
+          </p>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            className="btn w-full disabled:opacity-70"
+          >
+            Remove — this also deletes your rating
+          </button>
+        </div>
       )}
 
       {error && (

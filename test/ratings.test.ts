@@ -136,7 +136,7 @@ describe("POST /api/drinks/:id/rating", () => {
     expect(body.community).toEqual({ average: 8.8, count: 3 });
   });
 
-  it("lets a user rate a drink they have not collected", async () => {
+  it("adds the drink to the collection, because rating means having tried it", async () => {
     const cookie = await register();
     await rate(cookie, "d1", 8);
 
@@ -144,7 +144,8 @@ describe("POST /api/drinks/:id/rating", () => {
     const body = await detail.json<DrinkDetailResponse>();
 
     expect(body.viewerRating).toBe(8);
-    expect(body.inViewerCollection).toBe(false);
+    expect(body.inViewerCollection).toBe(true);
+    expect(body.viewerEntry?.status).toBe("collected");
   });
 });
 
