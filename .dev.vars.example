@@ -1,7 +1,10 @@
-# Local development secrets for `vite dev` / `wrangler dev`.
-# Copy to `.dev.vars` (git-ignored) and fill in. Nothing here is needed yet —
-# Phase 1 has no secrets. Open Food Facts requires no API key, only a
-# descriptive User-Agent, which arrives in Phase 5.
+# Local development secrets for `vite dev`.
 #
-# Example of what will land later:
-# OPEN_FOOD_FACTS_USER_AGENT="Drank/0.1 (https://github.com/Carl-Bagnall/drank)"
+# Copy to `.dev.vars` (git-ignored) and fill in. The app currently needs
+# nothing here: Open Food Facts requires no API key, only a descriptive
+# User-Agent, which is a plain var in wrangler.jsonc rather than a secret.
+#
+# This file exists so the seam is obvious when a real secret does arrive.
+# Anything genuinely secret goes here for local use and via
+# `npx wrangler secret put NAME` for deployed environments — never in
+# wrangler.jsonc, which is committed.

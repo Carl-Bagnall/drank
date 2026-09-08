@@ -72,7 +72,11 @@ npm run db:catalogue:remote
 
 ## 6. Configure environment variables
 
-Phase 1 has no secrets. When they arrive, copy `.dev.vars.example` to `.dev.vars` (git-ignored) for local use, and set production values with `npx wrangler secret put NAME`. Never commit secrets, and never expose them to the browser — external API calls that need credentials happen in the Worker.
+There are no application secrets yet. Open Food Facts needs no API key, only a descriptive User-Agent, which is a plain var in `wrangler.jsonc` rather than a secret.
+
+When a real secret does arrive: copy `.dev.vars.example` to `.dev.vars` (git-ignored) for local use, and set the deployed value with `npx wrangler secret put NAME`. Never put one in `wrangler.jsonc`, which is committed, and never expose one to the browser — external calls that need credentials happen in the Worker.
+
+Deployment credentials are separate from application secrets and live as GitHub repository secrets; see [Deploy](#8-deploy).
 
 ## 7. Run locally
 
@@ -109,14 +113,21 @@ CLOUDFLARE_ENV=staging npm run build && npx wrangler deploy -c dist/drank/wrangl
 
 ### GitHub secrets
 
-The workflows need two repository secrets, under **Settings → Secrets and variables → Actions**:
+The workflows need two repository secrets, under **Settings → Secrets and variables → Actions**: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The account id is printed by `npx wrangler whoami`.
 
-| Secret | Where to get it |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token, using the **Edit Cloudflare Workers** template |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → Account ID in the right-hand sidebar |
+Build the token with **Create Custom Token**, not the *Edit Cloudflare Workers* template. The template grants Workers KV and Zone routes, which this project never uses, and omits D1, which the migration step needs. Three permissions, all account-scoped:
 
-Until both exist, every workflow run fails at the deploy step. The checks before it still run, so a red build tells you which.
+| Type | Resource | Level | Why |
+| --- | --- | --- | --- |
+| Account | Workers Scripts | Edit | Deploys the Worker and uploads static assets |
+| Account | D1 | Edit | Runs `wrangler d1 migrations apply` |
+| Account | Account Settings | Read | Lets wrangler resolve the account |
+
+Scope **Account Resources** to the single account rather than "all accounts", and leave **Client IP Filtering** empty — GitHub runners use a large changing IP pool, so any restriction breaks deploys unpredictably.
+
+**No Zone permissions are required.** Zone scope covers domains you have added to Cloudflare; this serves from a `workers.dev` subdomain and the config has no `routes` or `custom_domain`. If a custom domain is added later, that is when `Zone → Workers Routes: Edit` (and `Zone → DNS: Edit` for a Custom Domain binding) become necessary.
+
+Until both secrets exist, every workflow run fails at the deploy step. The checks before it still run, so a red build points at the credentials rather than the code.
 
 ---
 
@@ -139,7 +150,11 @@ migrations/       D1 schema migrations, applied in order
 seed/             Development seed data
 src/
   client/         React SPA — components, pages, styles, API client
-  worker/         Hono API — routes and, later, service layers
+  worker/
+    routes/       HTTP concerns only
+    db/           every SQL statement in the app
+    auth/         password hashing and session handling
+    services/     external providers, behind an interface
   shared/         Types and logic used by both sides
 test/             Vitest suites, run inside workerd against real D1
 ```

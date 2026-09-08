@@ -520,14 +520,19 @@ describe("rate limiting", () => {
   });
 
   it("does not limit callers it cannot identify", async () => {
-    // No CF-Connecting-IP: many attempts, none rejected as rate limited.
+    // Exercised through logout rather than login. Both sit behind the same
+    // /api/auth/* middleware, but logout does no password hashing — driving
+    // this through login meant 30 real PBKDF2 verifications at 100,000
+    // iterations, which timed the test out without saying anything about the
+    // middleware being measured.
     for (let attempt = 0; attempt < 30; attempt++) {
-      const response = await SELF.fetch(`${BASE}/auth/login`, {
+      const response = await SELF.fetch(`${BASE}/auth/logout`, {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify({ identifier: "nobody", password: "wrong password" }),
       });
-      expect(response.status).toBe(401);
+      // Well past the 20/minute limit, and never refused: with no
+      // CF-Connecting-IP there is no key to count against.
+      expect(response.status).toBe(200);
     }
   });
 });
