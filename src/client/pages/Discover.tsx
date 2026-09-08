@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { DrinkSummary, Facets } from "../../shared/types";
@@ -24,6 +25,7 @@ const SORTS: { value: Sort; label: string }[] = [
  */
 export function Discover() {
   const [params, setParams] = useSearchParams();
+  usePageTitle("Discover");
 
   const q = params.get("q") ?? "";
   const category = params.get("category") ?? "";

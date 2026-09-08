@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { CollectionItem, CollectionStats as Stats, Facets } from "../../shared/types";
@@ -25,6 +26,7 @@ const SORTS: { value: Sort; label: string }[] = [
  */
 export function Collection() {
   const { user, loading: authLoading } = useAuth();
+  usePageTitle("Your collection");
   const [params, setParams] = useSearchParams();
 
   const sort = (params.get("sort") as Sort | null) ?? "recent";

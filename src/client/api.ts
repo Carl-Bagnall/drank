@@ -25,12 +25,26 @@ import type {
 export class ApiRequestError extends Error {
   readonly status: number;
   readonly code: string;
+  /**
+   * The rest of the error body.
+   *
+   * Some errors carry more than a message — a registration conflict names the
+   * field that clashed, so the form can mark and focus that input rather than
+   * showing a banner the user has to map back to a field themselves.
+   */
+  readonly details: Record<string, unknown>;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details: Record<string, unknown> = {},
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -69,6 +83,7 @@ export async function apiFetch<T>(
       response.status,
       err?.error ?? "unknown_error",
       err?.message ?? `Request failed with status ${response.status}.`,
+      (body as Record<string, unknown>) ?? {},
     );
   }
 

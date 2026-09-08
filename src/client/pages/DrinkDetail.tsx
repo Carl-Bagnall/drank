@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { DrinkDetailResponse } from "../../shared/types";
@@ -45,6 +46,11 @@ export function DrinkDetail() {
   const [errorMessage, setErrorMessage] = useState("");
   /** Set when the drink was just collected, to prompt for a rating. */
   const [promptRating, setPromptRating] = useState(false);
+
+  // Named after the drink once it has loaded, so a bookmark or a history entry
+  // says "Coca-Cola Cherry" rather than "Drank". Null until then, which leaves
+  // the previous title in place rather than flashing a placeholder.
+  usePageTitle(data ? `${data.drink.name} — ${data.drink.brand}` : null);
 
   const ratingRef = useRef<HTMLDivElement>(null);
 

@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+import { RouteChange } from "./RouteChange";
 import { BottomNavigation } from "./BottomNavigation";
 import { Logo } from "./Logo";
 
@@ -27,11 +28,21 @@ export function AppLayout() {
       </header>
 
       {/* Bottom padding clears the fixed nav plus the safe area. */}
-      <main id="main" className="mx-auto max-w-lg px-4 pb-32 pt-5">
+      {/* tabIndex -1 so RouteChange can move focus here after navigation
+          without putting main into the tab order. `outline-none` because that
+          focus is programmatic — the user did not tab to it, so a ring would
+          be confusing; genuine keyboard focus is still visible everywhere
+          else via :focus-visible. */}
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto max-w-lg px-4 pb-32 pt-5 outline-none"
+      >
         <Outlet />
       </main>
 
       <BottomNavigation />
+      <RouteChange mainId="main" />
     </div>
   );
 }

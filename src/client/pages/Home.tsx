@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { DrinkSummary } from "../../shared/types";
@@ -19,6 +20,7 @@ interface Feeds {
  * data or a wider catalogue to be meaningful, so they are not built yet.
  */
 export function Home() {
+  usePageTitle("Drank");
   const [feeds, setFeeds] = useState<Feeds | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");

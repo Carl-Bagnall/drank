@@ -1,7 +1,9 @@
+import { usePageTitle } from "../usePageTitle";
 import { Link } from "react-router";
 import { EmptyState } from "../components/States";
 
 export function NotFound() {
+  usePageTitle("Page not found");
   return (
     <EmptyState
       icon="🫙"

@@ -551,3 +551,33 @@ describe("password hashing limits", () => {
     expect(await verifyPassword("correct horse battery", hash)).toBe(true);
   });
 });
+
+describe("registration conflicts name the field", () => {
+  it("says which of username or email clashed", async () => {
+    await register("carl", "carl@example.com");
+
+    const sameUsername = await SELF.fetch(`${BASE}/auth/register`, {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: "carl",
+        email: "different@example.com",
+        password: "correct horse battery",
+      }),
+    });
+    // The form uses this to mark and focus the offending input rather than
+    // showing a banner the user has to map back to a field themselves.
+    expect(await sameUsername.json()).toMatchObject({ field: "username" });
+
+    const sameEmail = await SELF.fetch(`${BASE}/auth/register`, {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: "different",
+        email: "carl@example.com",
+        password: "correct horse battery",
+      }),
+    });
+    expect(await sameEmail.json()).toMatchObject({ field: "email" });
+  });
+});

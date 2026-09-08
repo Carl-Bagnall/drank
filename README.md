@@ -4,7 +4,7 @@ A community-driven catalogue and collection app for soft drinks — "Discogs for
 
 Mobile-first React SPA and a Hono API, served from a single Cloudflare Worker, backed by D1.
 
-> **Status: deployed.** Live at <https://drank.carlbagnall.workers.dev>. Accounts, catalogue, collections, wantlist, ratings, barcode lookup and drink contribution all work. Phase 6 polish — mobile UX, accessibility, performance — is what remains.
+> **Status: all seven phases complete, and deployed.** Live at <https://drank.carlbagnall.workers.dev>. Accounts, catalogue, collections, wantlist, ratings, barcode lookup and drink contribution all work. Known gaps are recorded below rather than left to be rediscovered.
 
 ---
 
@@ -279,6 +279,18 @@ Five tables: `users`, `drinks`, `collection_entries`, `ratings`, `sessions`.
 
 ---
 
+## Accessibility and performance
+
+Single-page navigation does not, on its own, do what a browser does for free on a full page load. `RouteChange` restores three of those things on every route change: it resets scroll (otherwise tapping a drink from halfway down Discover lands you halfway down the drink, which reads as a broken page on a phone), moves focus to `<main>` (otherwise focus is left on a link that no longer exists), and announces the new page through a polite live region, which is what tells a screen reader user the navigation happened at all.
+
+Each page sets its own document title via `usePageTitle`, so history entries, the tab switcher and bookmarks say something useful — a drink page names the drink. Passing `null` leaves the previous title in place, so a page that is still loading does not flash "Loading" into browser history.
+
+Form errors identify their field. A registration conflict says whether the username or the email clashed; the form marks that input with `aria-invalid`, links the message with `aria-describedby`, and moves focus to it. Focus is moved from an effect keyed on the failing field rather than from the submit handler, which would race the re-render.
+
+Routes are code-split. Home and Discover ship in the main bundle because that is where almost everyone lands; everything else loads on demand, which keeps the barcode scanner — unusable on iOS, untouched by most visits — out of the initial download. Initial JS is **69.8 kB gzipped**, down from 87.8 kB before splitting.
+
+---
+
 ## Design system
 
 Tokens live in `src/client/styles/index.css` using Tailwind v4's CSS-first `@theme` configuration — there is no `tailwind.config.js`.
@@ -311,5 +323,5 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | 3 | Accounts and collections | **Done** |
 | 4 | Ratings UI: personal and community | **Done** |
 | 5 | Open Food Facts lookup and barcode scanning | **Done** |
-| 6 | Polish: mobile UX, accessibility, performance | Next |
+| 6 | Polish: mobile UX, accessibility, performance | **Done** |
 | 7 | Production deployment and GitHub workflows | **Done** |

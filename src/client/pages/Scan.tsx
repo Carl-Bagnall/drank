@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import * as api from "../api";
@@ -27,6 +28,7 @@ type Phase =
  */
 export function Scan() {
   const navigate = useNavigate();
+  usePageTitle("Scan a barcode");
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<ScannerHandle | null>(null);
 

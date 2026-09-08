@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { CollectionItem } from "../../shared/types";
@@ -15,6 +16,7 @@ import { EmptyState, LoadingState } from "../components/States";
  * building any of it now would be inventing requirements.
  */
 export function Profile() {
+  usePageTitle("Your profile");
   const { user, stats, loading, signOut } = useAuth();
   const navigate = useNavigate();
 

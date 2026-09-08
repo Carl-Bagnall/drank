@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import type { NewDrinkInput, ProductSuggestion } from "../../shared/types";
@@ -57,6 +58,7 @@ export function AddDrink() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state ?? {}) as RouteState;
+  usePageTitle("Add a drink");
 
   const suggestion = state.suggestion;
 

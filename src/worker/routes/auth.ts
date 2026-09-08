@@ -72,14 +72,19 @@ auth.post("/auth/register", async (c) => {
       existing.username.toLowerCase() === username.toLowerCase()
         ? "username"
         : "email";
-    const body: ApiError = {
-      error: "already_exists",
-      message:
-        takenField === "username"
-          ? "That username is taken."
-          : "An account already exists for that email.",
-    };
-    return c.json(body, 409);
+    return c.json(
+      {
+        error: "already_exists",
+        // Naming the field lets the form mark and focus the right input
+        // instead of showing a banner the user has to map back themselves.
+        field: takenField,
+        message:
+          takenField === "username"
+            ? "That username is taken. Try another."
+            : "An account already exists for that email. Sign in instead?",
+      },
+      409,
+    );
   }
 
   const id = crypto.randomUUID();

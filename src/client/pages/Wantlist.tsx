@@ -1,3 +1,4 @@
+import { usePageTitle } from "../usePageTitle";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { CollectionItem } from "../../shared/types";
@@ -19,6 +20,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/States";
  */
 export function Wantlist() {
   const { user, stats, loading: authLoading } = useAuth();
+  usePageTitle("Wantlist");
 
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [total, setTotal] = useState(0);
