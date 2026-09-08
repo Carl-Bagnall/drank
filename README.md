@@ -310,7 +310,21 @@ Status and navigation are never signalled by colour alone: the active tab change
 
 Fonts are **self-hosted via `@fontsource`** — Archivo Black for display, Space Grotesk for UI — so there is no external request, no render-blocking round trip and no third-party privacy consideration.
 
-The theme is light-only for now; a dark theme is one additional block of token overrides and needs no component changes.
+### Light and dark
+
+Both themes are live. **Appearance** on the Profile screen offers Light, Dark or System; the choice is stored per device in `localStorage` and, on System, follows the OS setting live rather than only at page load. An inline script in `index.html` stamps `data-theme` on `<html>` before the first paint — the app bundle is a module and therefore deferred, so a theme applied from React would arrive a frame late and anyone on dark would watch the page flash cream first.
+
+An earlier version of this file claimed a dark theme would be "one additional block of token overrides and no component changes". That was wrong, and the reason is worth recording: **the design used one `--color-ink` for text, every outline and every shadow**, and those three want different answers once the paper can be dark.
+
+- **Text and outlines** follow the theme — near-black on cream, cream on near-black — *except* on an accent fill. The accents do not change between themes, so ink on top of them must not either: cream text on citrus is 1.3:1. Each fill therefore re-anchors the ink tokens for its own subtree (`--ink-on-accent` vs `--ink`), which is what lets the hundred-odd existing `text-ink` and `border-ink` usages work in both themes untouched, and lets a white card inside a berry header restore the theme's ink for its own contents.
+- **Shadows** follow the *parent*, not the element: a hard offset shadow lands on whatever is behind it. That is why the shadow token is set with `> *` — a citrus button on the dark page casts a cream shadow, but the same button inside a fizz hero casts a dark one.
+- **Disabled buttons** are now a flat solid state rather than `opacity`. A saturated accent at 60% over a near-black ground composites to mud, so the faded style that read fine on cream made a button look broken rather than unavailable.
+
+Four components needed changing, all for the same underlying reason — a colour resolved in the wrong scope. The active nav pill had to declare `text-ink` on the accent element itself rather than inherit it from the link; the skip link names its ink explicitly because `focus:bg-citrus` is not a plain `.bg-citrus` and no rule matches it; and the camera viewport moved to a `--color-shade` token, since it is a hole in the page for a live image and should be black in both themes rather than flipping to cream.
+
+Accent colours are identical in both palettes — they are the brand, and against a dark ground they simply read brighter (citrus goes from 1.4:1 against paper to 12.8:1). Everything else is measured: in dark, ink is 16.6:1 on paper, ink-muted 7.8:1, ink-faint 3.9:1, error text 6.9:1 — each at or above its light-theme counterpart. Error text needed its own themed token, because no single red clears 4.5:1 on both a cream and a near-black ground.
+
+> `text-cherry-dark` was in use in four places but `--color-cherry-dark` had never been defined, so Tailwind generated no such utility and those error messages were rendering in the inherited body colour rather than red. The token exists now, in both themes.
 
 ---
 
@@ -325,3 +339,4 @@ The theme is light-only for now; a dark theme is one additional block of token o
 | 5 | Open Food Facts lookup and barcode scanning | **Done** |
 | 6 | Polish: mobile UX, accessibility, performance | **Done** |
 | 7 | Production deployment and GitHub workflows | **Done** |
+| — | Light and dark themes, with a per-device switcher | **Done** |

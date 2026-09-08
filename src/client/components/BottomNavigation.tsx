@@ -104,7 +104,11 @@ function Tab({ to, label, tone, children }: TabProps) {
             className={[
               "flex size-9 items-center justify-center rounded-[10px] transition-transform",
               isActive
-                ? `${tone} border-[2.5px] border-ink shadow-[var(--shadow-sticker-sm)]`
+                // `text-ink` is on this element rather than inherited from the
+                // link: the accent fill re-anchors ink to its own dark value,
+                // and a colour inherited from an ancestor was resolved before
+                // that — in dark mode the icon would arrive cream on citrus.
+                ? `${tone} border-[2.5px] border-ink text-ink shadow-[var(--shadow-sticker-sm)]`
                 : "border-[2.5px] border-transparent",
             ].join(" ")}
           >

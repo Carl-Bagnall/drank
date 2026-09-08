@@ -197,7 +197,7 @@ export function RatingInput({
           type="button"
           onClick={save}
           disabled={busy || !dirty}
-          className="btn btn-cherry flex-1 disabled:opacity-50"
+          className="btn btn-cherry flex-1"
         >
           {busy ? "Saving…" : saved === null ? "Save rating" : "Update rating"}
         </button>
@@ -207,7 +207,7 @@ export function RatingInput({
             type="button"
             onClick={remove}
             disabled={busy}
-            className="btn disabled:opacity-50"
+            className="btn"
           >
             Remove
           </button>

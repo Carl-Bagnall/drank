@@ -87,7 +87,7 @@ export function CollectionNotes({
           type="button"
           disabled={!dirty || status === "saving"}
           onClick={() => void save({ notes })}
-          className="btn btn-citrus disabled:opacity-50"
+          className="btn btn-citrus"
         >
           {status === "saving" ? "Saving…" : "Save notes"}
         </button>

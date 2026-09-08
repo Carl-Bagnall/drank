@@ -16,7 +16,10 @@ export function AppLayout() {
     <div className="min-h-dvh">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-pill focus:border-[2.5px] focus:border-ink focus:bg-citrus focus:px-4 focus:py-2 focus:font-display focus:text-sm"
+        // The fill only appears on focus, so the stylesheet's accent rules —
+        // which key off a plain `.bg-citrus` — never match it. Ink is named
+        // explicitly instead, since citrus does not change between themes.
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-pill focus:border-[2.5px] focus:border-[var(--ink-on-accent)] focus:bg-citrus focus:px-4 focus:py-2 focus:font-display focus:text-sm focus:text-[var(--ink-on-accent)]"
       >
         Skip to content
       </a>

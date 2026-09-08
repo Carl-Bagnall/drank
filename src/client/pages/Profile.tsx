@@ -7,6 +7,7 @@ import { useAuth } from "../auth";
 import { CollectionStats } from "../components/CollectionStats";
 import { DrinkGrid } from "../components/DrinkGrid";
 import { EmptyState, LoadingState } from "../components/States";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 /**
  * Profile.
@@ -37,19 +38,29 @@ export function Profile() {
 
   if (loading) return <LoadingState label="Checking your session" />;
 
+  // Appearance sits below the sign-in prompt as well as below the profile
+  // itself. It is a device setting rather than an account one, and Profile is
+  // the only screen it lives on — putting it behind the sign-in wall would
+  // make it unreachable for exactly the people most likely to be looking
+  // around before committing to an account.
   if (!user) {
     return (
-      <EmptyState
-        icon="👤"
-        tone="bg-berry"
-        title="Sign in to see your profile"
-        description="Your profile shows what you have collected — the brands, the countries and how you rate them."
-        action={
-          <Link to="/signin" state={{ from: "/profile" }} className="btn btn-cherry">
-            Sign in
-          </Link>
-        }
-      />
+      <div>
+        <EmptyState
+          icon="👤"
+          tone="bg-berry"
+          title="Sign in to see your profile"
+          description="Your profile shows what you have collected — the brands, the countries and how you rate them."
+          action={
+            <Link to="/signin" state={{ from: "/profile" }} className="btn btn-cherry">
+              Sign in
+            </Link>
+          }
+        />
+        <div className="mt-8">
+          <ThemeToggle />
+        </div>
+      </div>
     );
   }
 
@@ -110,6 +121,10 @@ export function Profile() {
       )}
 
       <div className="mt-8">
+        <ThemeToggle />
+      </div>
+
+      <div className="mt-6">
         <button
           type="button"
           disabled={signingOut}
@@ -118,7 +133,7 @@ export function Profile() {
             await signOut();
             navigate("/");
           }}
-          className="btn w-full disabled:opacity-60"
+          className="btn w-full"
         >
           {signingOut ? "Signing out…" : "Sign out"}
         </button>

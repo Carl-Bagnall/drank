@@ -6,13 +6,49 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#FBF5E9" />
+    <meta name="theme-color" content="#fbf5e9" />
     <meta
       name="description"
       content="Drank — collect, rate and discover soft drinks."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Drank</title>
+
+    <!--
+      Applies the theme before the first paint.
+
+      This has to be inline and synchronous. The app bundle is a module, so it
+      is deferred until after the document has been parsed and painted — a
+      theme applied from React would land a full frame late, and someone who
+      chose dark would watch the page flash cream first.
+
+      Kept deliberately small and duplicated rather than shared with
+      src/client/theme.tsx, which owns the theme from mount onwards. The
+      storage key and the two paper colours are the contract between them.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("drank-theme");
+          var theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+          if (theme === "dark") {
+            document
+              .querySelector('meta[name="theme-color"]')
+              .setAttribute("content", "#14110d");
+          }
+        } catch (error) {
+          // Storage blocked, or no matchMedia. The stylesheet's light palette
+          // is the default, so doing nothing leaves a working page.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

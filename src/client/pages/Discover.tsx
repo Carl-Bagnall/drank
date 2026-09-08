@@ -241,7 +241,7 @@ export function Discover() {
                   type="button"
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="btn btn-cherry disabled:opacity-60"
+                  className="btn btn-cherry"
                 >
                   {loadingMore ? "Loading…" : "Load more"}
                 </button>

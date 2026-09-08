@@ -1,6 +1,7 @@
 import { Suspense, lazy, type ReactNode } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AuthProvider } from "./auth";
+import { ThemeProvider } from "./theme";
 import { AppLayout } from "./components/AppLayout";
 import { LoadingState } from "./components/States";
 import { Discover } from "./pages/Discover";
@@ -49,81 +50,83 @@ const NotFound = lazy(() =>
  */
 export function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<Home />} />
-            <Route path="discover" element={<Discover />} />
-            {/* Declared before drinks/:id so "new" is not captured as an id. */}
-            <Route
-              path="drinks/new"
-              element={
-                <Lazy>
-                  <AddDrink />
-                </Lazy>
-              }
-            />
-            <Route
-              path="drinks/:id"
-              element={
-                <Lazy>
-                  <DrinkDetail />
-                </Lazy>
-              }
-            />
-            <Route
-              path="scan"
-              element={
-                <Lazy>
-                  <Scan />
-                </Lazy>
-              }
-            />
-            <Route
-              path="collection"
-              element={
-                <Lazy>
-                  <Collection />
-                </Lazy>
-              }
-            />
-            <Route
-              path="profile"
-              element={
-                <Lazy>
-                  <Profile />
-                </Lazy>
-              }
-            />
-            <Route
-              path="wantlist"
-              element={
-                <Lazy>
-                  <Wantlist />
-                </Lazy>
-              }
-            />
-            <Route
-              path="signin"
-              element={
-                <Lazy>
-                  <SignIn />
-                </Lazy>
-              }
-            />
-            <Route
-              path="*"
-              element={
-                <Lazy>
-                  <NotFound />
-                </Lazy>
-              }
-            />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<Home />} />
+              <Route path="discover" element={<Discover />} />
+              {/* Declared before drinks/:id so "new" is not captured as an id. */}
+              <Route
+                path="drinks/new"
+                element={
+                  <Lazy>
+                    <AddDrink />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="drinks/:id"
+                element={
+                  <Lazy>
+                    <DrinkDetail />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="scan"
+                element={
+                  <Lazy>
+                    <Scan />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="collection"
+                element={
+                  <Lazy>
+                    <Collection />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="profile"
+                element={
+                  <Lazy>
+                    <Profile />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="wantlist"
+                element={
+                  <Lazy>
+                    <Wantlist />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="signin"
+                element={
+                  <Lazy>
+                    <SignIn />
+                  </Lazy>
+                }
+              />
+              <Route
+                path="*"
+                element={
+                  <Lazy>
+                    <NotFound />
+                  </Lazy>
+                }
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

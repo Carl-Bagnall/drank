@@ -175,7 +175,7 @@ export function SignIn() {
         <button
           type="submit"
           disabled={submitting}
-          className="btn btn-cherry mt-5 w-full disabled:opacity-60"
+          className="btn btn-cherry mt-5 w-full"
         >
           {submitting
             ? "Please wait…"

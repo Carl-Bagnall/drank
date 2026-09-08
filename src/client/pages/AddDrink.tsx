@@ -308,7 +308,7 @@ export function AddDrink() {
         <button
           type="submit"
           disabled={submitting || !name.trim() || !brand.trim()}
-          className="btn btn-cherry w-full disabled:opacity-50"
+          className="btn btn-cherry w-full"
         >
           {submitting ? "Adding…" : "Add to the catalogue"}
         </button>

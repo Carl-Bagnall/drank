@@ -75,7 +75,7 @@ export function CollectButton({
             type="button"
             onClick={collect}
             disabled={busy}
-            className="btn btn-cherry w-full disabled:opacity-70"
+            className="btn btn-cherry w-full"
           >
             I've tried this
           </button>
@@ -83,7 +83,7 @@ export function CollectButton({
             type="button"
             onClick={want}
             disabled={busy}
-            className="btn w-full disabled:opacity-70"
+            className="btn w-full"
           >
             ☆ Add to wantlist
           </button>
@@ -99,7 +99,7 @@ export function CollectButton({
             type="button"
             onClick={collect}
             disabled={busy}
-            className="btn btn-cherry w-full disabled:opacity-70"
+            className="btn btn-cherry w-full"
           >
             I've tried this
           </button>
@@ -107,7 +107,7 @@ export function CollectButton({
             type="button"
             onClick={remove}
             disabled={busy}
-            className="btn w-full disabled:opacity-70"
+            className="btn w-full"
           >
             Remove from wantlist
           </button>
@@ -125,7 +125,7 @@ export function CollectButton({
             type="button"
             onClick={remove}
             disabled={busy}
-            className="btn w-full disabled:opacity-70"
+            className="btn w-full"
           >
             Remove — this also deletes your rating
           </button>

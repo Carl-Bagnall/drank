@@ -108,7 +108,7 @@ export function Scan() {
 
         {support.supported ? (
           <div className="sticker mt-2 overflow-hidden">
-            <div className="relative aspect-[4/3] bg-ink">
+            <div className="relative aspect-[4/3] bg-shade">
               <video
                 ref={videoRef}
                 className="size-full object-cover"
@@ -116,7 +116,7 @@ export function Scan() {
                 aria-hidden="true"
               />
               {phase.kind !== "scanning" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-ink">
+                <div className="absolute inset-0 flex items-center justify-center bg-shade">
                   <span className="text-4xl" aria-hidden="true">
                     📷
                   </span>
@@ -141,7 +141,7 @@ export function Scan() {
                   type="button"
                   onClick={beginScanning}
                   disabled={phase.kind === "looking-up"}
-                  className="btn btn-cherry w-full disabled:opacity-60"
+                  className="btn btn-cherry w-full"
                 >
                   Start camera
                 </button>
@@ -184,7 +184,7 @@ export function Scan() {
           <button
             type="submit"
             disabled={manual.trim().length < 8 || phase.kind === "looking-up"}
-            className="btn btn-citrus mt-3 w-full disabled:opacity-50"
+            className="btn btn-citrus mt-3 w-full"
           >
             {phase.kind === "looking-up" ? "Looking up…" : "Look up barcode"}
           </button>

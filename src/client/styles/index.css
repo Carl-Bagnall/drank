@@ -15,23 +15,96 @@
      3. Flat, saturated colour blocks — no gradients anywhere
      4. Heavy display type, tight tracking
 
-   Colour rule: ink text on every accent fill. Never white on an accent —
-   white on cherry is only 3.5:1 and fails AA, whereas ink on every accent
-   below clears 5:1:
-     ink on cherry ~5.4:1   ink on berry  ~7.4:1
-     ink on fizz   ~8.9:1   ink on citrus ~12.8:1
-     ink on lime  ~13.8:1   ink on paper  ~17.5:1
+   Two palettes, one set of rules. `[data-theme]` is stamped on <html> before
+   first paint by the inline script in index.html, so there is no flash of the
+   wrong theme; src/client/theme.tsx owns it from then on.
+
+   A single "ink" colour cannot serve the whole design once there are two
+   palettes, so it splits three ways:
+
+     --ink*           the theme's own ink. Flips: near-black on cream paper,
+                      cream on near-black paper.
+     --ink-on-accent  the ink used on top of an accent fill. Never flips,
+                      because the accents never flip — cherry is the same
+                      cherry in both themes, so text on it must stay dark.
+     --shadow-ink     the colour of the hard offset shadow. Set for an
+                      element's *children* rather than for itself, because a
+                      shadow falls on whatever is behind the element — its
+                      parent — not on the element's own fill.
+
+   The `--color-*` tokens below are the Tailwind-facing names. They reference
+   those variables rather than holding colours directly, which is what lets a
+   fill re-anchor them for its own subtree further down.
 --------------------------------------------------------------------------- */
+
+:root {
+  /* Accents are printed colour: identical in both themes. So the ink that
+     sits on them is fixed too — and the light theme simply adopts it, because
+     on cream paper "ink on an accent" and "ink on the page" are one colour.
+
+     Colour rule: ink on every accent fill, never white. White on cherry is
+     only 3.5:1 and fails AA, whereas ink clears 5:1 on all six:
+       ink on cherry ~5.4:1   ink on berry  ~7.5:1
+       ink on fizz   ~8.9:1   ink on citrus ~12.7:1
+       ink on lime  ~13.9:1   ink on tang   ~7.2:1 */
+  --ink-on-accent: #141210;
+  --ink-on-accent-muted: #5d564c;
+  --ink-on-accent-faint: #9a9184;
+  --danger-on-accent: #b3122f;
+}
+
+/* Light — the original palette. */
+:root {
+  color-scheme: light;
+
+  --paper: #fbf5e9;
+  --surface: #ffffff;
+  --sunken: #f0e7d6;
+
+  --ink: var(--ink-on-accent);
+  --ink-muted: var(--ink-on-accent-muted);
+  --ink-faint: var(--ink-on-accent-faint);
+  --danger: var(--danger-on-accent);
+
+  /* The default shadow colour, for anything sitting straight on the page. */
+  --shadow-ink: var(--ink);
+}
+
+/* Dark. The accents are deliberately untouched — they are the brand, and
+   against a near-black ground they read as brighter rather than as different
+   colours (citrus goes from 1.4:1 against paper to 12.8:1, which is the whole
+   appeal of the thing).
+
+   Measured against the dark paper:
+     ink 16.6:1   ink-muted 7.8:1   ink-faint 3.9:1   danger 6.9:1
+   Each is at or above its light-theme equivalent. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #14110d;
+  --surface: #1f1b15;
+  --sunken: #2b2620;
+
+  --ink: #f6f0e3;
+  --ink-muted: #b0a693;
+  --ink-faint: #7a7062;
+  --danger: #ff6b81;
+}
+
 @theme {
   /* Surfaces */
-  --color-paper: #fbf5e9;
-  --color-surface: #ffffff;
-  --color-sunken: #f0e7d6;
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
 
   /* Ink — text, and every outline in the app */
-  --color-ink: #141210;
-  --color-ink-muted: #5d564c;
-  --color-ink-faint: #9a9184;
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  /* Error text. Themed, because no single red clears 4.5:1 on both a cream
+     and a near-black ground. */
+  --color-cherry-dark: var(--danger);
 
   /* Flavour accents. These double as category colours later, which is why
      there are six rather than one brand colour. */
@@ -42,15 +115,19 @@
   --color-fizz: #16c7c0;
   --color-tang: #ff7a29;
 
+  /* A media well — the camera viewport. Black in both themes: it is a hole in
+     the page for a live image, not a surface. */
+  --color-shade: #0b0a09;
+
   /* Chunky, but not pill-shaped except where intended */
   --radius-card: 14px;
   --radius-sticker: 10px;
   --radius-pill: 999px;
 
   /* Hard offset shadows — no blur, ever */
-  --shadow-sticker: 3px 3px 0 var(--color-ink);
-  --shadow-sticker-lg: 5px 5px 0 var(--color-ink);
-  --shadow-sticker-sm: 2px 2px 0 var(--color-ink);
+  --shadow-sticker: 3px 3px 0 var(--shadow-ink);
+  --shadow-sticker-lg: 5px 5px 0 var(--shadow-ink);
+  --shadow-sticker-sm: 2px 2px 0 var(--shadow-ink);
 
   --font-display: "Archivo Black", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
@@ -59,6 +136,10 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* Also on <html>, so overscroll past the body — and the area behind a
+       phone's address bar as it collapses — is the theme's paper rather than
+       the browser's default white. */
+    background-color: var(--color-paper);
   }
 
   body {
@@ -84,7 +165,8 @@
   }
 
   /* Thick offset ring rather than a hairline — a thin outline disappears
-     against heavy black borders. */
+     against heavy black borders. Cherry works on both papers: 3.2:1 against
+     cream, 5.4:1 against the dark ground. */
   :focus-visible {
     outline: 3px solid var(--color-cherry);
     outline-offset: 3px;
@@ -100,6 +182,76 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Fill context
+   ---------------------------------------------------------------------------
+   Every fill in the app is either a themed surface or an accent, and the two
+   want opposite ink. Re-anchoring the tokens on the fill itself is what lets
+   the hundred-odd existing `text-ink` and `border-ink` usages work in both
+   themes without one of them being edited — and nesting then resolves by
+   ordinary inheritance, so a white card inside a berry header restores the
+   theme's ink for its own subtree.
+
+   `color` is declared alongside the tokens for text inherited from an
+   ancestor rather than set on the fill. Utilities live in a later layer, so a
+   `text-*` class on the same element still wins — and it resolves against
+   these tokens, so it lands on the same value regardless.
+
+   The accent rule comes second on purpose: `.sticker` and `.bg-citrus` can
+   appear on one element, and the accent is what is actually painted.
+--------------------------------------------------------------------------- */
+@layer components {
+  .bg-paper,
+  .bg-surface,
+  .bg-sunken,
+  .sticker,
+  .sticker-lg {
+    --color-ink: var(--ink);
+    --color-ink-muted: var(--ink-muted);
+    --color-ink-faint: var(--ink-faint);
+    --color-cherry-dark: var(--danger);
+    color: var(--ink);
+  }
+
+  .bg-cherry,
+  .bg-citrus,
+  .bg-lime,
+  .bg-berry,
+  .bg-fizz,
+  .bg-tang,
+  .btn-cherry,
+  .btn-citrus {
+    --color-ink: var(--ink-on-accent);
+    --color-ink-muted: var(--ink-on-accent-muted);
+    --color-ink-faint: var(--ink-on-accent-faint);
+    --color-cherry-dark: var(--danger-on-accent);
+    color: var(--ink-on-accent);
+  }
+
+  /* Shadows are handed down rather than kept. An element's offset shadow
+     lands on its parent's fill, so the parent decides the colour — which is
+     why these use `> *` and the two rules above do not. Descendants inherit
+     the value, so only the boundary needs stating. */
+  .bg-paper > *,
+  .bg-surface > *,
+  .bg-sunken > *,
+  .sticker > *,
+  .sticker-lg > * {
+    --shadow-ink: var(--ink);
+  }
+
+  .bg-cherry > *,
+  .bg-citrus > *,
+  .bg-lime > *,
+  .bg-berry > *,
+  .bg-fizz > *,
+  .bg-tang > *,
+  .btn-cherry > *,
+  .btn-citrus > * {
+    --shadow-ink: var(--ink-on-accent);
   }
 }
 
@@ -157,6 +309,25 @@
   .btn:active {
     transform: translate(3px, 3px);
     box-shadow: 0 0 0 var(--color-ink);
+  }
+
+  /* Disabled is a flat, solid state rather than a faded one.
+     `opacity` was doing this job, and it worked against cream paper — but a
+     saturated accent at 60% over a near-black ground composites to mud, so
+     the dark theme made an unavailable button look broken instead of
+     unavailable. Solid theme colours read the same way on both papers.
+
+     Losing the offset shadow is the point: in this design a raised sticker is
+     what says "pressable", so a flat one says the opposite without relying on
+     colour at all. These reference the theme variables directly, not the
+     re-anchored `--color-*` tokens, because the fill is no longer the accent
+     the button was carrying. */
+  .btn:disabled {
+    border-color: var(--ink-faint);
+    background-color: var(--sunken);
+    color: var(--ink-muted);
+    box-shadow: none;
+    cursor: not-allowed;
   }
 
   .btn-cherry {
